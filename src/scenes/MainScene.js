@@ -3,6 +3,16 @@ import * as Phaser from 'phaser';
 export default class MainScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MainScene' });
+        this.barConfig = {
+            width: 350,
+            height: 20,
+            fillHeight: 16,
+            padding: 2,
+            y: 50,
+            staminaGap: 8,
+            p1x: 0,
+            p2x: 0
+        };
     }
 
     preload() {
@@ -58,45 +68,108 @@ export default class MainScene extends Phaser.Scene {
         this.createAnimations();
         this.createAnimationsPlayer2();
 
-        // Create the animation text displays
-        this.animText = this.add.text(16, 16, 'Player 1 Controls:', {
-            fontSize: '18px',
-            fill: '#fff'
-        }).setDepth(100);
+        // Update the x positions to be more centered
+        this.barConfig.p1x = this.cameras.main.centerX - 375;
+        this.barConfig.p2x = this.cameras.main.centerX + 25;
 
-        this.animText2 = this.add.text(660, 16, 'Player 2 Controls (Hold Shift):', {
-            fontSize: '18px',
-            fill: '#fff'
-        }).setDepth(100);
-        
-        // Define animation controls
-        const animationControls = [
-            { key: Phaser.Input.Keyboard.KeyCodes.ONE, anim: 'idle', name: '1: Idle', repeat: -1 },
-            { key: Phaser.Input.Keyboard.KeyCodes.TWO, anim: 'walking', name: '2: Walking', repeat: -1 },
-            { key: Phaser.Input.Keyboard.KeyCodes.THREE, anim: 'running', name: '3: Running', repeat: -1 },
-            { key: Phaser.Input.Keyboard.KeyCodes.FOUR, anim: 'slashing', name: '4: Slash', repeat: 0 },
-            { key: Phaser.Input.Keyboard.KeyCodes.FIVE, anim: 'kicking', name: '5: Kick', repeat: 0 },
-            { key: Phaser.Input.Keyboard.KeyCodes.SIX, anim: 'sliding', name: '6: Slide', repeat: 1 },
-            { key: Phaser.Input.Keyboard.KeyCodes.SEVEN, anim: 'hurt', name: '7: Hurt', repeat: 0 },
-            { key: Phaser.Input.Keyboard.KeyCodes.EIGHT, anim: 'dying', name: '8: Die', repeat: 0 }
-        ];
+        // Create containers for each player's bars
+        this.p1Bars = {
+            healthBorder: this.add.graphics().setDepth(100),
+            healthFill: this.add.graphics().setDepth(99),
+            staminaBorder: this.add.graphics().setDepth(100),
+            staminaFill: this.add.graphics().setDepth(99),
+            health: 100,
+            stamina: 100
+        };
 
-        // Add key controls text for both players
-        let yPos = 50;
-        animationControls.forEach(control => {
-            // Player 1 controls (left side)
-            this.add.text(16, yPos, control.name, {
-                fontSize: '16px',
-                fill: '#fff'
-            }).setDepth(100);
+        this.p2Bars = {
+            healthBorder: this.add.graphics().setDepth(100),
+            healthFill: this.add.graphics().setDepth(99),
+            staminaBorder: this.add.graphics().setDepth(100),
+            staminaFill: this.add.graphics().setDepth(99),
+            health: 100,
+            stamina: 100
+        };
 
-            // Player 2 controls (right side)
-            this.add.text(660, yPos, control.name, {
-                fontSize: '16px',
-                fill: '#fff'
-            }).setDepth(100);
-            yPos += 25;
+        const textConfig = {
+            fontSize: '14px',
+            fill: '#fff',
+            fontFamily: 'monospace'
+        };
+
+        // Player labels
+        this.add.text(this.barConfig.p1x + this.barConfig.width, this.barConfig.y - 20, 'PLAYER 1', textConfig)
+            .setOrigin(1, 0)
+            .setDepth(100);
+        this.add.text(this.barConfig.p2x, this.barConfig.y - 20, 'PLAYER 2', textConfig)
+            .setOrigin(0, 0)
+            .setDepth(100);
+
+        // Animation keys with updated format
+        const animConfig = {
+            fontSize: '12px',
+            fill: '#fff',
+            fontFamily: 'monospace'
+        };
+
+        // Player 1 keys (left side)
+        this.add.text(16, 100, 
+            '1: Idle\n2: Walking\n3: Running\n4: Slash\n5: Kick\n6: Slide\n7: Hurt\n8: Die\nF: Fight!', 
+            animConfig)
+            .setDepth(100);
+
+        // Player 2 keys (right side) with Shift prefix
+        this.add.text(this.cameras.main.width - 16, 100,
+            'S+1: Idle\nS+2: Walking\nS+3: Running\nS+4: Slash\nS+5: Kick\nS+6: Slide\nS+7: Hurt\nS+8: Die\nF: Fight!',
+            animConfig)
+            .setOrigin(1, 0)
+            .setDepth(100);
+
+        // Draw borders with adjusted positions
+        this.p1Bars.healthBorder.lineStyle(2, 0x000000);
+        this.p1Bars.healthBorder.strokeRect(
+            Math.floor(this.barConfig.p1x),
+            Math.floor(this.barConfig.y),
+            this.barConfig.width,
+            this.barConfig.height
+        );
+
+        this.p1Bars.staminaBorder.lineStyle(2, 0x000000);
+        this.p1Bars.staminaBorder.strokeRect(
+            Math.floor(this.barConfig.p1x),
+            Math.floor(this.barConfig.y + this.barConfig.height + 5),
+            this.barConfig.width,
+            this.barConfig.height/2
+        );
+
+        this.p2Bars.healthBorder.lineStyle(2, 0x000000);
+        this.p2Bars.healthBorder.strokeRect(
+            Math.floor(this.barConfig.p2x),
+            Math.floor(this.barConfig.y),
+            this.barConfig.width,
+            this.barConfig.height
+        );
+
+        this.p2Bars.staminaBorder.lineStyle(2, 0x000000);
+        this.p2Bars.staminaBorder.strokeRect(
+            Math.floor(this.barConfig.p2x),
+            Math.floor(this.barConfig.y + this.barConfig.height + 5),
+            this.barConfig.width,
+            this.barConfig.height/2
+        );
+
+        // Set depths for all UI elements
+        [this.p1Bars, this.p2Bars].forEach(bars => {
+            Object.values(bars).forEach(item => {
+                if (item instanceof Phaser.GameObjects.Graphics) {
+                    item.setDepth(100);
+                }
+            });
         });
+
+        // Initial fill of bars
+        this.updateHealthBars();
+        this.updateStaminaBars();
 
         // Setup keyboard controls properly
         this.keys = this.input.keyboard.addKeys({
@@ -109,6 +182,21 @@ export default class MainScene extends Phaser.Scene {
             SEVEN: Phaser.Input.Keyboard.KeyCodes.SEVEN,
             EIGHT: Phaser.Input.Keyboard.KeyCodes.EIGHT,
             SHIFT: Phaser.Input.Keyboard.KeyCodes.SHIFT
+        });
+
+        // Setup animation complete handlers
+        this.player.on('animationcomplete', (animation) => {
+            // Only switch to idle if it's not already playing idle, looping animations, or dying
+            if (!['idle', 'walking', 'running', 'dying'].includes(animation.key)) {
+                this.player.play('idle');
+            }
+        });
+
+        this.player2.on('animationcomplete', (animation) => {
+            // Only switch to idle if it's not already playing idle, looping animations, or dying
+            if (!['idle2', 'walking2', 'running2', 'dying2'].includes(animation.key)) {
+                this.player2.play('idle2');
+            }
         });
 
         // Start both players with idle animation
@@ -124,46 +212,6 @@ export default class MainScene extends Phaser.Scene {
         // Store initial positions
         this.playerStartX = this.player.x;
         this.player2StartX = this.player2.x;
-
-        // Add UI text at the end of create()
-        const textConfig = { 
-            fontSize: '16px', 
-            fill: '#fff',
-            fontFamily: 'monospace'
-        };
-
-        // Remove any existing text displays first (if any)
-        this.children.list
-            .filter(child => child.type === 'Text')
-            .forEach(text => text.destroy());
-
-        // Add new text displays
-        this.add.text(16, 16, 'Player 1 Controls:', textConfig).setDepth(100);
-        this.add.text(16, 40, '1: Idle\n2: Walking\n3: Running\n4: Slash\n5: Kick\n6: Slide\n7: Hurt\n8: Die', 
-            textConfig).setDepth(100);
-
-        this.add.text(this.cameras.main.width - 16, 16, 'Player 2 Controls (Hold Shift)', 
-            {...textConfig, align: 'right'}).setOrigin(1, 0).setDepth(100);
-        this.add.text(this.cameras.main.width - 16, 40, '1: Idle\n2: Walking\n3: Running\n4: Slash\n5: Kick\n6: Slide\n7: Hurt\n8: Die', 
-            {...textConfig, align: 'right'}).setOrigin(1, 0).setDepth(100);
-
-        // Setup animation completion handlers
-        const nonLoopingAnims = ['slashing', 'kicking', 'sliding', 'hurt'];
-        const nonLoopingAnims2 = ['slashing2', 'kicking2', 'sliding2', 'hurt2'];
-
-        // Player 1 animation completions
-        this.player.on('animationcomplete', (animation) => {
-            if (nonLoopingAnims.includes(animation.key)) {
-                this.player.play('idle', true);
-            }
-        });
-
-        // Player 2 animation completions
-        this.player2.on('animationcomplete', (animation) => {
-            if (nonLoopingAnims2.includes(animation.key)) {
-                this.player2.play('idle2', true);
-            }
-        });
     }
 
     createAnimations() {
@@ -284,6 +332,18 @@ export default class MainScene extends Phaser.Scene {
         if (this.fKey.isDown && !this.isFightSequencePlaying) {
             this.startFightSequence();
         }
+
+        // Example: Press 7 to damage player 1, 8 to damage player 2
+        if (!this.keys.SHIFT.isDown) {
+            if (this.keys.SEVEN.isDown && this.p1Bars.health > 0) {
+                this.p1Bars.health = Math.max(0, this.p1Bars.health - 1);
+                this.updateHealthBars();
+            }
+            if (this.keys.EIGHT.isDown && this.p2Bars.health > 0) {
+                this.p2Bars.health = Math.max(0, this.p2Bars.health - 1);
+                this.updateHealthBars();
+            }
+        }
     }
 
     startFightSequence() {
@@ -349,5 +409,148 @@ export default class MainScene extends Phaser.Scene {
         this.time.delayedCall(2000, () => {
             this.isFightSequencePlaying = false;
         });
+    }
+
+    updateHealthBars() {
+        // Player 1 health bar
+        this.p1Bars.healthFill.clear();
+        this.p1Bars.healthBorder.clear();
+        const p1Width = (this.barConfig.width - (this.barConfig.padding * 2)) * (this.p1Bars.health / 100);
+        
+        // Extra thick black outline
+        this.p1Bars.healthBorder.lineStyle(4, 0x000000, 1);
+        this.p1Bars.healthBorder.strokeRoundedRect(
+            Math.floor(this.barConfig.p1x),
+            Math.floor(this.barConfig.y),
+            this.barConfig.width,
+            this.barConfig.height,
+            6  // More rounded corners
+        );
+
+        // Main fill with rounded corners
+        this.p1Bars.healthFill.fillStyle(0xff3333);
+        this.p1Bars.healthFill.fillRoundedRect(
+            Math.floor(this.barConfig.p1x) + this.barConfig.padding,
+            Math.floor(this.barConfig.y) + this.barConfig.padding,
+            p1Width,
+            this.barConfig.fillHeight,
+            5
+        );
+
+        // Chunky highlight
+        this.p1Bars.healthFill.fillStyle(0xff6666);
+        this.p1Bars.healthFill.fillRoundedRect(
+            Math.floor(this.barConfig.p1x) + this.barConfig.padding,
+            Math.floor(this.barConfig.y) + this.barConfig.padding,
+            p1Width,
+            this.barConfig.fillHeight / 2,
+            5
+        );
+
+        // Player 2 health bar
+        this.p2Bars.healthFill.clear();
+        this.p2Bars.healthBorder.clear();
+        const p2Width = (this.barConfig.width - (this.barConfig.padding * 2)) * (this.p2Bars.health / 100);
+        
+        // Extra thick black outline
+        this.p2Bars.healthBorder.lineStyle(4, 0x000000, 1);
+        this.p2Bars.healthBorder.strokeRoundedRect(
+            Math.floor(this.barConfig.p2x),
+            Math.floor(this.barConfig.y),
+            this.barConfig.width,
+            this.barConfig.height,
+            6
+        );
+
+        // Main fill with rounded corners
+        this.p2Bars.healthFill.fillStyle(0xff3333);
+        this.p2Bars.healthFill.fillRoundedRect(
+            Math.floor(this.barConfig.p2x) + this.barConfig.padding,
+            Math.floor(this.barConfig.y) + this.barConfig.padding,
+            p2Width,
+            this.barConfig.fillHeight,
+            5
+        );
+
+        // Chunky highlight
+        this.p2Bars.healthFill.fillStyle(0xff6666);
+        this.p2Bars.healthFill.fillRoundedRect(
+            Math.floor(this.barConfig.p2x) + this.barConfig.padding,
+            Math.floor(this.barConfig.y) + this.barConfig.padding,
+            p2Width,
+            this.barConfig.fillHeight / 2,
+            5
+        );
+    }
+
+    updateStaminaBars() {
+        const staminaY = this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap;
+        
+        // Player 1 stamina bar
+        this.p1Bars.staminaFill.clear();
+        this.p1Bars.staminaBorder.clear();
+        const p1Width = (this.barConfig.width - (this.barConfig.padding * 2)) * (this.p1Bars.stamina / 100);
+        
+        // Extra thick black outline with smaller radius
+        this.p1Bars.staminaBorder.lineStyle(4, 0x000000, 1);
+        this.p1Bars.staminaBorder.strokeRoundedRect(
+            Math.floor(this.barConfig.p1x),
+            Math.floor(staminaY),
+            this.barConfig.width,
+            this.barConfig.height/2,
+            3  // Reduced from 6 to 3
+        );
+
+        // Main fill with smaller radius
+        this.p1Bars.staminaFill.fillStyle(0xffcc00);
+        this.p1Bars.staminaFill.fillRoundedRect(
+            Math.floor(this.barConfig.p1x) + this.barConfig.padding,
+            Math.floor(staminaY) + this.barConfig.padding,
+            p1Width,
+            this.barConfig.height/2 - this.barConfig.padding * 2,
+            2  // Reduced from 5 to 2
+        );
+
+        // Chunky highlight with smaller radius
+        this.p1Bars.staminaFill.fillStyle(0xffd633);
+        this.p1Bars.staminaFill.fillRoundedRect(
+            Math.floor(this.barConfig.p1x) + this.barConfig.padding,
+            Math.floor(staminaY) + this.barConfig.padding,
+            p1Width,
+            (this.barConfig.height/2 - this.barConfig.padding * 2) / 2,
+            2  // Reduced from 5 to 2
+        );
+
+        // Player 2 stamina bar (same changes)
+        this.p2Bars.staminaFill.clear();
+        this.p2Bars.staminaBorder.clear();
+        const p2Width = (this.barConfig.width - (this.barConfig.padding * 2)) * (this.p2Bars.stamina / 100);
+        
+        this.p2Bars.staminaBorder.lineStyle(4, 0x000000, 1);
+        this.p2Bars.staminaBorder.strokeRoundedRect(
+            Math.floor(this.barConfig.p2x),
+            Math.floor(staminaY),
+            this.barConfig.width,
+            this.barConfig.height/2,
+            3  // Reduced from 6 to 3
+        );
+
+        this.p2Bars.staminaFill.fillStyle(0xffcc00);
+        this.p2Bars.staminaFill.fillRoundedRect(
+            Math.floor(this.barConfig.p2x) + this.barConfig.padding,
+            Math.floor(staminaY) + this.barConfig.padding,
+            p2Width,
+            this.barConfig.height/2 - this.barConfig.padding * 2,
+            2  // Reduced from 5 to 2
+        );
+
+        this.p2Bars.staminaFill.fillStyle(0xffd633);
+        this.p2Bars.staminaFill.fillRoundedRect(
+            Math.floor(this.barConfig.p2x) + this.barConfig.padding,
+            Math.floor(staminaY) + this.barConfig.padding,
+            p2Width,
+            (this.barConfig.height/2 - this.barConfig.padding * 2) / 2,
+            2  // Reduced from 5 to 2
+        );
     }
 }
