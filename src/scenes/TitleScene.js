@@ -23,6 +23,8 @@ export default class TitleScene extends Phaser.Scene {
     }
 
     create() {
+        this.createAnimations();
+
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
 
@@ -93,85 +95,105 @@ export default class TitleScene extends Phaser.Scene {
 
         // Setup keyboard controls
         this.cursors = this.input.keyboard.createCursorKeys();
+        
+        // Add flags to prevent animation interruption
+        this.isPlayingOneShot = false;
 
-        // Create animations
-        if (!this.anims.exists('idle')) {
-            const animations = [
-                { key: 'idle', prefix: 'Idle_', frames: 18 },
-                { key: 'running', prefix: 'Running_', frames: 12 },
-                { key: 'slashing', prefix: 'Slashing_', frames: 12 },
-                { key: 'kicking', prefix: 'Kicking_', frames: 12 }
-            ];
-
-            animations.forEach(({ key, prefix, frames }) => {
-                this.anims.create({
-                    key: key,
-                    frames: this.anims.generateFrameNames('player', {
-                        prefix: prefix,
-                        start: 0,
-                        end: frames - 1,
-                        zeroPad: 3,
-                        suffix: '.png'
-                    }),
-                    frameRate: 24,
-                    repeat: key === 'idle' || key === 'running' ? -1 : 0
-                });
-            });
-        }
-
-        // Setup animation complete handler
+        // Setup animation complete handler - modified version
         this.player.on('animationcomplete', (animation) => {
-            if (!['idle', 'running'].includes(animation.key)) {
-                this.player.play('idle');
+            // Only switch to idle if it's not already playing idle or running
+            if (!['Idle', 'Running'].includes(animation.key)) {
+                this.player.play('Idle');
+                this.isPlayingOneShot = false;
             }
         });
 
         // Start with idle animation
-        this.player.play('idle');
+        this.player.play('Idle');
+    }
+
+    createAnimations() {
+        const animations = [
+            { key: 'Dying', prefix: 'Dying_', frames: 15 },
+            { key: 'Hurt', prefix: 'Hurt_', frames: 12 },
+            { key: 'Idle', prefix: 'Idle_', frames: 18 },
+            { key: 'Kicking', prefix: 'Kicking_', frames: 12 },
+            { key: 'Running', prefix: 'Running_', frames: 12 },
+            { key: 'Slashing', prefix: 'Slashing_', frames: 12 },
+            { key: 'Sliding', prefix: 'Sliding_', frames: 6 },
+            { key: 'Walking', prefix: 'Walking_', frames: 24 }
+        ];
+
+        animations.forEach(({ key, prefix, frames }) => {
+            this.anims.create({
+                key: key,
+                frames: this.anims.generateFrameNames('player', {
+                    prefix: prefix,
+                    start: 0,
+                    end: frames - 1,
+                    zeroPad: 3,
+                    suffix: '.png'
+                }),
+                frameRate: 24,
+                repeat: key === 'Idle' || key === 'Walking' || key === 'Running' ? -1 : 0
+            });
+        });
     }
 
     update() {
         const MOVE_SPEED = 2;
 
-        if (this.cursors.left.isDown) {
-            this.player.setFlipX(true);
-            this.player.play('running', true);
-            
-            const nextX = this.player.x - MOVE_SPEED;
-            if (nextX >= this.worldBounds.playerLeft) {
-                this.player.x = nextX;
-            } else {
-                this.player.x = this.worldBounds.playerLeft;
-            }
-        }
-        else if (this.cursors.right.isDown) {
-            this.player.setFlipX(false);
-            this.player.play('running', true);
-            
-            const nextX = this.player.x + MOVE_SPEED;
-            if (nextX <= this.worldBounds.playerRight) {
-                this.player.x = nextX;
+        // Only process movement and new animations if we're not in a one-shot animation
+        if (!this.isPlayingOneShot) {
+            if (this.cursors.left.isDown) {
+                this.player.setFlipX(true);
+                this.player.play('Running', true);
                 
-                // Check if player has reached the right side
-                if (nextX >= this.worldBounds.playerRight - 10) {  // Added small buffer
-                    // Add transition effect
-                    this.cameras.main.fade(1000, 0, 0, 0);
-                    this.time.delayedCall(1000, () => {
-                        this.scene.start('MainScene');
-                    });
+                const nextX = this.player.x - MOVE_SPEED;
+                if (nextX >= this.worldBounds.playerLeft) {
+                    this.player.x = nextX;
+                } else {
+                    this.player.x = this.worldBounds.playerLeft;
                 }
-            } else {
-                this.player.x = this.worldBounds.playerRight;
             }
-        }
-        else if (this.cursors.up.isDown) {
-            this.player.play('slashing', true);
-        }
-        else if (this.cursors.down.isDown) {
-            this.player.play('kicking', true);
-        }
-        else {
-            this.player.play('idle', true);
+            else if (this.cursors.right.isDown) {
+                this.player.setFlipX(false);
+                this.player.play('Running', true);
+                
+                const nextX = this.player.x + MOVE_SPEED;
+                if (nextX <= this.worldBounds.playerRight) {
+                    this.player.x = nextX;
+                    
+                    if (nextX >= this.worldBounds.playerRight - 10) {
+                        this.cameras.main.fade(1000, 0, 0, 0);
+                        this.time.delayedCall(1000, () => {
+                            this.scene.start('MainScene');
+                        });
+                    }
+                } else {
+                    this.player.x = this.worldBounds.playerRight;
+                }
+            }
+            else if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
+                this.player.play('Slashing', true);
+                this.isPlayingOneShot = true;
+            }
+            else if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
+                this.player.play('Kicking', true);
+                this.isPlayingOneShot = true;
+            }
+            else {
+                // If no movement keys are pressed and we're not in a one-shot animation,
+                // and we're currently running, switch back to Idle
+                if (this.player.anims.currentAnim && 
+                    this.player.anims.currentAnim.key === 'Running') {
+                    this.player.play('Idle', true);
+                }
+                // If no animation is playing, also go back to Idle
+                else if (!this.player.anims.isPlaying) {
+                    this.player.play('Idle', true);
+                }
+            }
         }
     }
 }

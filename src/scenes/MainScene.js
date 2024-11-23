@@ -4,14 +4,16 @@ export default class MainScene extends Phaser.Scene {
     constructor() {
         super({ key: 'MainScene' });
         this.barConfig = {
-            width: 350,
-            height: 20,
+            width: 200,
+            height: 15,
             fillHeight: 16,
             padding: 2,
             y: 50,
             staminaGap: 8,
             p1x: 0,
-            p2x: 0
+            p2x: 0,
+            textureWidth: 512,
+            textureHeight: 64
         };
     }
 
@@ -32,9 +34,103 @@ export default class MainScene extends Phaser.Scene {
         // Your existing player load
         this.load.atlas('player', '/assets/characters/knight1/player.png', '/assets/characters/knight1/player.json');
         this.load.atlas('player2', '/assets/characters/knight2/player.png', '/assets/characters/knight2/player.json');
+
+        // Load health/stamina bar assets
+        this.load.image('bar-bg', '/assets/ui/load_bar_bg.png');
+        this.load.image('bar-fill-1', '/assets/ui/load_bar_1.png');
+        this.load.image('bar-fill-2', '/assets/ui/load_bar_2.png');
+        this.load.image('bar-fill-1-right', '/assets/ui/load_bar_1_right.png');
+        this.load.image('bar-fill-2-right', '/assets/ui/load_bar_2_right.png');
+        this.load.image('bar-dark', '/assets/ui/dark.png');
     }
 
     create() {
+        this.barConfig = {
+            ...this.barConfig,
+            width: 400,
+            staminaWidth: 300,
+            height: 26,
+            staminaHeight: 15,
+            fillHeight: 27,
+            padding: 2,
+            y: 30,
+            staminaGap: 8,
+            p1x: this.cameras.main.centerX - 420,
+            p2x: this.cameras.main.centerX + 20,
+            nudgeFactor: 3
+        };
+
+        // Player 1 bars (right-aligned stamina, nudged left)
+        this.p1Bars = {
+            healthBg: this.add.image(this.barConfig.p1x, this.barConfig.y, 'bar-bg')
+                .setOrigin(0, 0)
+                .setDepth(98)
+                .setDisplaySize(this.barConfig.width, this.barConfig.height),
+            healthFill: this.add.image(this.barConfig.p1x, this.barConfig.y, 'bar-fill-2')
+                .setOrigin(0, 0)
+                .setDepth(100)
+                .setDisplaySize(this.barConfig.width, this.barConfig.height),
+            staminaBg: this.add.image(
+                (this.barConfig.p1x + this.barConfig.width - this.barConfig.staminaWidth) - this.barConfig.nudgeFactor,
+                this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
+                'bar-bg'
+            )
+                .setOrigin(0, 0)
+                .setDepth(98)
+                .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
+            staminaFill: this.add.image(
+                (this.barConfig.p1x + this.barConfig.width - this.barConfig.staminaWidth) - this.barConfig.nudgeFactor,
+                this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
+                'bar-fill-1'
+            )
+                .setOrigin(0, 0)
+                .setDepth(100)
+                .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
+            health: 100,
+            stamina: 100
+        };
+
+        // Player 2 bars (left-aligned stamina, nudged right)
+        this.p2Bars = {
+            healthBg: this.add.image(this.barConfig.p2x, this.barConfig.y, 'bar-bg')
+                .setOrigin(0, 0)
+                .setDepth(98)
+                .setDisplaySize(this.barConfig.width, this.barConfig.height),
+            healthFill: this.add.image(this.barConfig.p2x, this.barConfig.y, 'bar-fill-2-right')
+                .setOrigin(0, 0)
+                .setDepth(100)
+                .setDisplaySize(this.barConfig.width, this.barConfig.height),
+            staminaBg: this.add.image(
+                this.barConfig.p2x + this.barConfig.nudgeFactor,
+                this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
+                'bar-bg'
+            )
+                .setOrigin(0, 0)
+                .setDepth(98)
+                .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
+            staminaFill: this.add.image(
+                this.barConfig.p2x + this.barConfig.nudgeFactor,
+                this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
+                'bar-fill-1-right'
+            )
+                .setOrigin(0, 0)
+                .setDepth(100)
+                .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
+            health: 100,
+            stamina: 100
+        };
+
+        // Get the actual texture dimensions
+        const fillTexture = this.textures.get('bar-fill-1');
+        this.barConfig.textureWidth = fillTexture.source[0].width;
+        this.barConfig.textureHeight = fillTexture.source[0].height;
+
+        // Initial setup of crop rectangles using texture dimensions
+        [this.p1Bars, this.p2Bars].forEach(bars => {
+            bars.healthFill.setCrop(0, 0, this.barConfig.textureWidth, this.barConfig.textureHeight);
+            bars.staminaFill.setCrop(0, 0, this.barConfig.textureWidth, this.barConfig.textureHeight);
+        });
+
         // Add all layers in order with corrected depth and alpha
         const layers = [
             { key: 'sky', depth: 0, alpha: 0.75 },
@@ -69,27 +165,8 @@ export default class MainScene extends Phaser.Scene {
         this.createAnimationsPlayer2();
 
         // Update the x positions to be more centered
-        this.barConfig.p1x = this.cameras.main.centerX - 375;
-        this.barConfig.p2x = this.cameras.main.centerX + 25;
-
-        // Create containers for each player's bars
-        this.p1Bars = {
-            healthBorder: this.add.graphics().setDepth(100),
-            healthFill: this.add.graphics().setDepth(99),
-            staminaBorder: this.add.graphics().setDepth(100),
-            staminaFill: this.add.graphics().setDepth(99),
-            health: 100,
-            stamina: 100
-        };
-
-        this.p2Bars = {
-            healthBorder: this.add.graphics().setDepth(100),
-            healthFill: this.add.graphics().setDepth(99),
-            staminaBorder: this.add.graphics().setDepth(100),
-            staminaFill: this.add.graphics().setDepth(99),
-            health: 100,
-            stamina: 100
-        };
+        this.barConfig.p1x = this.cameras.main.centerX - 420;  // Further left
+        this.barConfig.p2x = this.cameras.main.centerX + 20;   // Keep right position
 
         const textConfig = {
             fontSize: '14px',
@@ -97,11 +174,11 @@ export default class MainScene extends Phaser.Scene {
             fontFamily: 'monospace'
         };
 
-        // Player labels
-        this.add.text(this.barConfig.p1x + this.barConfig.width, this.barConfig.y - 20, 'PLAYER 1', textConfig)
+        // Player labels with minimal padding
+        this.add.text(this.barConfig.p1x + this.barConfig.width - 10, this.barConfig.y - 20, 'PLAYER 1', textConfig)
             .setOrigin(1, 0)
             .setDepth(100);
-        this.add.text(this.barConfig.p2x, this.barConfig.y - 20, 'PLAYER 2', textConfig)
+        this.add.text(this.barConfig.p2x + 10, this.barConfig.y - 20, 'PLAYER 2', textConfig)
             .setOrigin(0, 0)
             .setDepth(100);
 
@@ -124,52 +201,6 @@ export default class MainScene extends Phaser.Scene {
             animConfig)
             .setOrigin(1, 0)
             .setDepth(100);
-
-        // Draw borders with adjusted positions
-        this.p1Bars.healthBorder.lineStyle(2, 0x000000);
-        this.p1Bars.healthBorder.strokeRect(
-            Math.floor(this.barConfig.p1x),
-            Math.floor(this.barConfig.y),
-            this.barConfig.width,
-            this.barConfig.height
-        );
-
-        this.p1Bars.staminaBorder.lineStyle(2, 0x000000);
-        this.p1Bars.staminaBorder.strokeRect(
-            Math.floor(this.barConfig.p1x),
-            Math.floor(this.barConfig.y + this.barConfig.height + 5),
-            this.barConfig.width,
-            this.barConfig.height/2
-        );
-
-        this.p2Bars.healthBorder.lineStyle(2, 0x000000);
-        this.p2Bars.healthBorder.strokeRect(
-            Math.floor(this.barConfig.p2x),
-            Math.floor(this.barConfig.y),
-            this.barConfig.width,
-            this.barConfig.height
-        );
-
-        this.p2Bars.staminaBorder.lineStyle(2, 0x000000);
-        this.p2Bars.staminaBorder.strokeRect(
-            Math.floor(this.barConfig.p2x),
-            Math.floor(this.barConfig.y + this.barConfig.height + 5),
-            this.barConfig.width,
-            this.barConfig.height/2
-        );
-
-        // Set depths for all UI elements
-        [this.p1Bars, this.p2Bars].forEach(bars => {
-            Object.values(bars).forEach(item => {
-                if (item instanceof Phaser.GameObjects.Graphics) {
-                    item.setDepth(100);
-                }
-            });
-        });
-
-        // Initial fill of bars
-        this.updateHealthBars();
-        this.updateStaminaBars();
 
         // Setup keyboard controls properly
         this.keys = this.input.keyboard.addKeys({
@@ -335,13 +366,25 @@ export default class MainScene extends Phaser.Scene {
 
         // Example: Press 7 to damage player 1, 8 to damage player 2
         if (!this.keys.SHIFT.isDown) {
-            if (this.keys.SEVEN.isDown && this.p1Bars.health > 0) {
-                this.p1Bars.health = Math.max(0, this.p1Bars.health - 1);
-                this.updateHealthBars();
+            if (this.keys.SEVEN.isDown) {
+                if (this.p1Bars.health > 0) {
+                    this.p1Bars.health = Math.max(0, this.p1Bars.health - 1);
+                    this.updateHealthBars();
+                }
+                if (this.p1Bars.stamina > 0) {
+                    this.p1Bars.stamina = Math.max(0, this.p1Bars.stamina - 0.5); // Deplete stamina at half speed
+                    this.updateStaminaBars();
+                }
             }
-            if (this.keys.EIGHT.isDown && this.p2Bars.health > 0) {
-                this.p2Bars.health = Math.max(0, this.p2Bars.health - 1);
-                this.updateHealthBars();
+            if (this.keys.EIGHT.isDown) {
+                if (this.p2Bars.health > 0) {
+                    this.p2Bars.health = Math.max(0, this.p2Bars.health - 1);
+                    this.updateHealthBars();
+                }
+                if (this.p2Bars.stamina > 0) {
+                    this.p2Bars.stamina = Math.max(0, this.p2Bars.stamina - 0.5); // Deplete stamina at half speed
+                    this.updateStaminaBars();
+                }
             }
         }
     }
@@ -412,145 +455,57 @@ export default class MainScene extends Phaser.Scene {
     }
 
     updateHealthBars() {
-        // Player 1 health bar
-        this.p1Bars.healthFill.clear();
-        this.p1Bars.healthBorder.clear();
-        const p1Width = (this.barConfig.width - (this.barConfig.padding * 2)) * (this.p1Bars.health / 100);
+        // Player 1 health bar (depleting from left side towards center)
+        const p1HealthWidth = Math.floor(this.barConfig.textureWidth * (this.p1Bars.health / 100));
+        const p1StaminaWidth = Math.floor(this.barConfig.textureWidth * (this.p1Bars.stamina / 100));
         
-        // Extra thick black outline
-        this.p1Bars.healthBorder.lineStyle(4, 0x000000, 1);
-        this.p1Bars.healthBorder.strokeRoundedRect(
-            Math.floor(this.barConfig.p1x),
-            Math.floor(this.barConfig.y),
-            this.barConfig.width,
-            this.barConfig.height,
-            6  // More rounded corners
-        );
-
-        // Main fill with rounded corners
-        this.p1Bars.healthFill.fillStyle(0xff3333);
-        this.p1Bars.healthFill.fillRoundedRect(
-            Math.floor(this.barConfig.p1x) + this.barConfig.padding,
-            Math.floor(this.barConfig.y) + this.barConfig.padding,
-            p1Width,
-            this.barConfig.fillHeight,
-            5
-        );
-
-        // Chunky highlight
-        this.p1Bars.healthFill.fillStyle(0xff6666);
-        this.p1Bars.healthFill.fillRoundedRect(
-            Math.floor(this.barConfig.p1x) + this.barConfig.padding,
-            Math.floor(this.barConfig.y) + this.barConfig.padding,
-            p1Width,
-            this.barConfig.fillHeight / 2,
-            5
-        );
-
-        // Player 2 health bar
-        this.p2Bars.healthFill.clear();
-        this.p2Bars.healthBorder.clear();
-        const p2Width = (this.barConfig.width - (this.barConfig.padding * 2)) * (this.p2Bars.health / 100);
+        this.p1Bars.healthFill.setDisplaySize(this.barConfig.width, this.barConfig.height);
+        this.p1Bars.staminaFill.setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight);
         
-        // Extra thick black outline
-        this.p2Bars.healthBorder.lineStyle(4, 0x000000, 1);
-        this.p2Bars.healthBorder.strokeRoundedRect(
-            Math.floor(this.barConfig.p2x),
-            Math.floor(this.barConfig.y),
-            this.barConfig.width,
-            this.barConfig.height,
-            6
+        // Player 1 crops from left to right
+        this.p1Bars.healthFill.setCrop(
+            this.barConfig.textureWidth - p1HealthWidth,
+            0,
+            p1HealthWidth,
+            this.barConfig.textureHeight
         );
-
-        // Main fill with rounded corners
-        this.p2Bars.healthFill.fillStyle(0xff3333);
-        this.p2Bars.healthFill.fillRoundedRect(
-            Math.floor(this.barConfig.p2x) + this.barConfig.padding,
-            Math.floor(this.barConfig.y) + this.barConfig.padding,
-            p2Width,
-            this.barConfig.fillHeight,
-            5
+        
+        // Player 2 health bar (depleting from right side towards center)
+        const p2HealthWidth = Math.floor(this.barConfig.textureWidth * (this.p2Bars.health / 100));
+        const p2StaminaWidth = Math.floor(this.barConfig.textureWidth * (this.p2Bars.stamina / 100));
+        
+        this.p2Bars.healthFill.setDisplaySize(this.barConfig.width, this.barConfig.height);
+        this.p2Bars.staminaFill.setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight);
+        
+        // Player 2 crops from right to left (reversed)
+        this.p2Bars.healthFill.setCrop(
+            0,  // Start from left edge
+            0,
+            p2HealthWidth,  // Only show the amount of health remaining
+            this.barConfig.textureHeight
         );
-
-        // Chunky highlight
-        this.p2Bars.healthFill.fillStyle(0xff6666);
-        this.p2Bars.healthFill.fillRoundedRect(
-            Math.floor(this.barConfig.p2x) + this.barConfig.padding,
-            Math.floor(this.barConfig.y) + this.barConfig.padding,
-            p2Width,
-            this.barConfig.fillHeight / 2,
-            5
-        );
+        
+        // Adjust the position of player 2's health fill to align with the right edge
+        // this.p2Bars.healthFill.x = this.barConfig.p2x + this.barConfig.width - p2HealthWidth; // Remove this line
     }
 
     updateStaminaBars() {
-        const staminaY = this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap;
-        
-        // Player 1 stamina bar
-        this.p1Bars.staminaFill.clear();
-        this.p1Bars.staminaBorder.clear();
-        const p1Width = (this.barConfig.width - (this.barConfig.padding * 2)) * (this.p1Bars.stamina / 100);
-        
-        // Extra thick black outline with smaller radius
-        this.p1Bars.staminaBorder.lineStyle(4, 0x000000, 1);
-        this.p1Bars.staminaBorder.strokeRoundedRect(
-            Math.floor(this.barConfig.p1x),
-            Math.floor(staminaY),
-            this.barConfig.width,
-            this.barConfig.height/2,
-            3  // Reduced from 6 to 3
-        );
+        // Player 1 stamina (depleting left to right)
+        const p1StaminaWidth = Math.floor(this.barConfig.textureWidth * (this.p1Bars.stamina / 100));
+        this.p1Bars.staminaFill.setCrop(
+            this.barConfig.textureWidth - p1StaminaWidth,
+            0,
+            p1StaminaWidth,
+            this.barConfig.textureHeight
+        ).setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight);
 
-        // Main fill with smaller radius
-        this.p1Bars.staminaFill.fillStyle(0xffcc00);
-        this.p1Bars.staminaFill.fillRoundedRect(
-            Math.floor(this.barConfig.p1x) + this.barConfig.padding,
-            Math.floor(staminaY) + this.barConfig.padding,
-            p1Width,
-            this.barConfig.height/2 - this.barConfig.padding * 2,
-            2  // Reduced from 5 to 2
-        );
-
-        // Chunky highlight with smaller radius
-        this.p1Bars.staminaFill.fillStyle(0xffd633);
-        this.p1Bars.staminaFill.fillRoundedRect(
-            Math.floor(this.barConfig.p1x) + this.barConfig.padding,
-            Math.floor(staminaY) + this.barConfig.padding,
-            p1Width,
-            (this.barConfig.height/2 - this.barConfig.padding * 2) / 2,
-            2  // Reduced from 5 to 2
-        );
-
-        // Player 2 stamina bar (same changes)
-        this.p2Bars.staminaFill.clear();
-        this.p2Bars.staminaBorder.clear();
-        const p2Width = (this.barConfig.width - (this.barConfig.padding * 2)) * (this.p2Bars.stamina / 100);
-        
-        this.p2Bars.staminaBorder.lineStyle(4, 0x000000, 1);
-        this.p2Bars.staminaBorder.strokeRoundedRect(
-            Math.floor(this.barConfig.p2x),
-            Math.floor(staminaY),
-            this.barConfig.width,
-            this.barConfig.height/2,
-            3  // Reduced from 6 to 3
-        );
-
-        this.p2Bars.staminaFill.fillStyle(0xffcc00);
-        this.p2Bars.staminaFill.fillRoundedRect(
-            Math.floor(this.barConfig.p2x) + this.barConfig.padding,
-            Math.floor(staminaY) + this.barConfig.padding,
-            p2Width,
-            this.barConfig.height/2 - this.barConfig.padding * 2,
-            2  // Reduced from 5 to 2
-        );
-
-        this.p2Bars.staminaFill.fillStyle(0xffd633);
-        this.p2Bars.staminaFill.fillRoundedRect(
-            Math.floor(this.barConfig.p2x) + this.barConfig.padding,
-            Math.floor(staminaY) + this.barConfig.padding,
-            p2Width,
-            (this.barConfig.height/2 - this.barConfig.padding * 2) / 2,
-            2  // Reduced from 5 to 2
-        );
+        // Player 2 stamina (depleting right to left)
+        const p2StaminaWidth = Math.floor(this.barConfig.textureWidth * (this.p2Bars.stamina / 100));
+        this.p2Bars.staminaFill.setCrop(
+            0,
+            0,
+            p2StaminaWidth,
+            this.barConfig.textureHeight
+        ).setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight);
     }
 }
