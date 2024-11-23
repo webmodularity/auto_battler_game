@@ -1,4 +1,6 @@
 import * as Phaser from 'phaser';
+import BootScene from './scenes/BootScene';
+import TitleScene from './scenes/TitleScene';
 import MainScene from './scenes/MainScene';
 
 const config = {
@@ -6,7 +8,7 @@ const config = {
     width: 960,
     height: 540,
     parent: 'game',
-    scene: [MainScene],
+    scene: [BootScene, TitleScene, MainScene],
     physics: {
         default: 'arcade',
         arcade: {
@@ -14,7 +16,6 @@ const config = {
             debug: false
         }
     },
-    // Add these scaling settings
     scale: {
         mode: Phaser.Scale.FIT,
         autoCenter: Phaser.Scale.CENTER_BOTH,
