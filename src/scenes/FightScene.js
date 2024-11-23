@@ -1,8 +1,8 @@
 import * as Phaser from 'phaser';
 
-export default class MainScene extends Phaser.Scene {
+export default class FightScene extends Phaser.Scene {
     constructor() {
-        super({ key: 'MainScene' });
+        super({ key: 'FightScene' });
         this.barConfig = {
             width: 200,
             height: 15,

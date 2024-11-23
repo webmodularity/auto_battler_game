@@ -167,7 +167,7 @@ export default class TitleScene extends Phaser.Scene {
                     if (nextX >= this.worldBounds.playerRight - 10) {
                         this.cameras.main.fade(1000, 0, 0, 0);
                         this.time.delayedCall(1000, () => {
-                            this.scene.start('MainScene');
+                            this.scene.start('FightScene');
                         });
                     }
                 } else {

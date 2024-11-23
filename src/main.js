@@ -1,14 +1,14 @@
 import * as Phaser from 'phaser';
 import BootScene from './scenes/BootScene';
 import TitleScene from './scenes/TitleScene';
-import MainScene from './scenes/MainScene';
+import FightScene from './scenes/FightScene';
 
 const config = {
     type: Phaser.AUTO,
     width: 960,
     height: 540,
     parent: 'game',
-    scene: [BootScene, TitleScene, MainScene],
+    scene: [BootScene, TitleScene, FightScene],
     physics: {
         default: 'arcade',
         arcade: {
