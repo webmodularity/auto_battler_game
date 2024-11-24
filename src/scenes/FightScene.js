@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import { decodeCombatLog } from '../utils/combatDecoder';
 
 export default class FightScene extends Phaser.Scene {
     constructor() {
@@ -15,6 +16,30 @@ export default class FightScene extends Phaser.Scene {
             textureWidth: 512,
             textureHeight: 64
         };
+        this.combatData = null;
+    }
+
+    init(data) {
+        console.log('FightScene init called with data:', data);
+
+        if (data.combatLog) {
+            const combatLog = "0x020001160a05000005000001260a01160a05000002000c01000a01160a05000005000001260a";
+            console.log('Raw combat log:', combatLog);
+            
+            try {
+                this.combatData = decodeCombatLog(combatLog);
+                console.log('Decoded combat data:', this.combatData);
+                
+                console.log('Winner:', this.combatData.winner);
+                console.log('Condition:', this.combatData.condition);
+                console.log('Number of actions:', this.combatData.actions.length);
+                console.log('Actions:', JSON.stringify(this.combatData.actions, null, 2));
+            } catch (error) {
+                console.error('Error decoding combat log:', error);
+            }
+        } else {
+            console.log('No combat log provided in scene data');
+        }
     }
 
     preload() {
@@ -162,77 +187,10 @@ export default class FightScene extends Phaser.Scene {
 
         // Create animations for both players
         this.createAnimations();
-        this.createAnimationsPlayer2();
 
         // Update the x positions to be more centered
         this.barConfig.p1x = this.cameras.main.centerX - 420;  // Further left
         this.barConfig.p2x = this.cameras.main.centerX + 20;   // Keep right position
-
-        const textConfig = {
-            fontSize: '14px',
-            fill: '#fff',
-            fontFamily: 'monospace'
-        };
-
-        // Player labels with minimal padding
-        this.add.text(this.barConfig.p1x + this.barConfig.width - 10, this.barConfig.y - 20, 'PLAYER 1', textConfig)
-            .setOrigin(1, 0)
-            .setDepth(100);
-        this.add.text(this.barConfig.p2x + 10, this.barConfig.y - 20, 'PLAYER 2', textConfig)
-            .setOrigin(0, 0)
-            .setDepth(100);
-
-        // Animation keys with updated format
-        const animConfig = {
-            fontSize: '12px',
-            fill: '#fff',
-            fontFamily: 'monospace'
-        };
-
-        // Player 1 keys (left side)
-        this.add.text(16, 100, 
-            '1: Idle\n2: Walking\n3: Running\n4: Slash\n5: Kick\n6: Slide\n7: Hurt\n8: Die\nF: Fight!', 
-            animConfig)
-            .setDepth(100);
-
-        // Player 2 keys (right side) with Shift prefix
-        this.add.text(this.cameras.main.width - 16, 100,
-            'S+1: Idle\nS+2: Walking\nS+3: Running\nS+4: Slash\nS+5: Kick\nS+6: Slide\nS+7: Hurt\nS+8: Die\nF: Fight!',
-            animConfig)
-            .setOrigin(1, 0)
-            .setDepth(100);
-
-        // Setup keyboard controls properly
-        this.keys = this.input.keyboard.addKeys({
-            ONE: Phaser.Input.Keyboard.KeyCodes.ONE,
-            TWO: Phaser.Input.Keyboard.KeyCodes.TWO,
-            THREE: Phaser.Input.Keyboard.KeyCodes.THREE,
-            FOUR: Phaser.Input.Keyboard.KeyCodes.FOUR,
-            FIVE: Phaser.Input.Keyboard.KeyCodes.FIVE,
-            SIX: Phaser.Input.Keyboard.KeyCodes.SIX,
-            SEVEN: Phaser.Input.Keyboard.KeyCodes.SEVEN,
-            EIGHT: Phaser.Input.Keyboard.KeyCodes.EIGHT,
-            SHIFT: Phaser.Input.Keyboard.KeyCodes.SHIFT
-        });
-
-        // Setup animation complete handlers
-        this.player.on('animationcomplete', (animation) => {
-            // Only switch to idle if it's not already playing idle, looping animations, or dying
-            if (!['idle', 'walking', 'running', 'dying'].includes(animation.key)) {
-                this.player.play('idle');
-            }
-        });
-
-        this.player2.on('animationcomplete', (animation) => {
-            // Only switch to idle if it's not already playing idle, looping animations, or dying
-            if (!['idle2', 'walking2', 'running2', 'dying2'].includes(animation.key)) {
-                this.player2.play('idle2');
-            }
-        });
-
-        // Start both players with idle animation
-        this.player.play('idle');
-        this.player2.play('idle2');
 
         // Add keyboard input
         this.fKey = this.input.keyboard.addKey('F');
@@ -243,6 +201,14 @@ export default class FightScene extends Phaser.Scene {
         // Store initial positions
         this.playerStartX = this.player.x;
         this.player2StartX = this.player2.x;
+
+        // Define centerX for use in animations
+        this.centerX = this.cameras.main.centerX;
+
+        // Auto-start the fight sequence after a short delay
+        this.time.delayedCall(1000, () => {
+            this.startFightSequence();
+        });
     }
 
     createAnimations() {
@@ -257,48 +223,27 @@ export default class FightScene extends Phaser.Scene {
             { key: 'walking', prefix: 'Walking_', frames: 24 }
         ];
 
-        animations.forEach(({ key, prefix, frames }) => {
-            this.anims.create({
-                key: key,
-                frames: this.anims.generateFrameNames('player', {
-                    prefix: prefix,
-                    start: 0,
-                    end: frames - 1,
-                    zeroPad: 3,
-                    suffix: '.png'
-                }),
-                frameRate: 24,
-                repeat: key === 'idle' || key === 'walking' || key === 'running' ? -1 : 0
+        // Create animations for both players
+        ['', '2'].forEach(suffix => {
+            animations.forEach(({ key, prefix, frames }) => {
+                this.anims.create({
+                    key: key + suffix,
+                    frames: this.anims.generateFrameNames(suffix ? 'player2' : 'player', {
+                        prefix: prefix,
+                        start: 0,
+                        end: frames - 1,
+                        zeroPad: 3,
+                        suffix: '.png'
+                    }),
+                    frameRate: 24,  // Consistent framerate for all animations
+                    repeat: key === 'idle' || key === 'walking' || key === 'running' ? -1 : 0
+                });
             });
         });
-    }
 
-    createAnimationsPlayer2() {
-        const animations = [
-            { key: 'dying2',    prefix: 'Dying_',    frames: 15 },
-            { key: 'hurt2',     prefix: 'Hurt_',     frames: 12 },
-            { key: 'idle2',     prefix: 'Idle_',     frames: 18 },
-            { key: 'kicking2',  prefix: 'Kicking_',  frames: 12 },
-            { key: 'running2',  prefix: 'Running_',  frames: 12 },
-            { key: 'slashing2', prefix: 'Slashing_', frames: 12 },
-            { key: 'sliding2',  prefix: 'Sliding_',  frames: 6 },
-            { key: 'walking2',  prefix: 'Walking_',  frames: 24 }
-        ];
-
-        animations.forEach(({ key, prefix, frames }) => {
-            this.anims.create({
-                key: key,
-                frames: this.anims.generateFrameNames('player2', {
-                    prefix: prefix,
-                    start: 0,
-                    end: frames - 1,
-                    zeroPad: 3,
-                    suffix: '.png'
-                }),
-                frameRate: 24,
-                repeat: key === 'idle2' || key === 'walking2' || key === 'running2' ? -1 : 0
-            });
-        });
+        // Start both players in idle animation
+        this.player.play('idle');
+        this.player2.play('idle2');
     }
 
     update() {
@@ -319,139 +264,117 @@ export default class FightScene extends Phaser.Scene {
             this.player2.setDepth(5);
         }
 
-        if (this.keys.SHIFT.isDown) {
-            // Player 2 controls (only when shift is held)
-            if (this.keys.ONE.isDown) {
-                this.player2.play('idle2', true);
-            } else if (this.keys.TWO.isDown) {
-                this.player2.play('walking2', true);
-            } else if (this.keys.THREE.isDown) {
-                this.player2.play('running2', true);
-            } else if (this.keys.FOUR.isDown) {
-                this.player2.play('slashing2', true);
-            } else if (this.keys.FIVE.isDown) {
-                this.player2.play('kicking2', true);
-            } else if (this.keys.SIX.isDown) {
-                this.player2.play('sliding2', true);
-            } else if (this.keys.SEVEN.isDown) {
-                this.player2.play('hurt2', true);
-            } else if (this.keys.EIGHT.isDown) {
-                this.player2.play('dying2', true);
-            }
-        } else {
-            // Player 1 controls (only when shift is NOT held)
-            if (this.keys.ONE.isDown) {
-                this.player.play('idle', true);
-            } else if (this.keys.TWO.isDown) {
-                this.player.play('walking', true);
-            } else if (this.keys.THREE.isDown) {
-                this.player.play('running', true);
-            } else if (this.keys.FOUR.isDown) {
-                this.player.play('slashing', true);
-            } else if (this.keys.FIVE.isDown) {
-                this.player.play('kicking', true);
-            } else if (this.keys.SIX.isDown) {
-                this.player.play('sliding', true);
-            } else if (this.keys.SEVEN.isDown) {
-                this.player.play('hurt', true);
-            } else if (this.keys.EIGHT.isDown) {
-                this.player.play('dying', true);
-            }
-        }
-
-        // Check for F key press
         if (this.fKey.isDown && !this.isFightSequencePlaying) {
             this.startFightSequence();
-        }
-
-        // Example: Press 7 to damage player 1, 8 to damage player 2
-        if (!this.keys.SHIFT.isDown) {
-            if (this.keys.SEVEN.isDown) {
-                if (this.p1Bars.health > 0) {
-                    this.p1Bars.health = Math.max(0, this.p1Bars.health - 1);
-                    this.updateHealthBars();
-                }
-                if (this.p1Bars.stamina > 0) {
-                    this.p1Bars.stamina = Math.max(0, this.p1Bars.stamina - 0.5); // Deplete stamina at half speed
-                    this.updateStaminaBars();
-                }
-            }
-            if (this.keys.EIGHT.isDown) {
-                if (this.p2Bars.health > 0) {
-                    this.p2Bars.health = Math.max(0, this.p2Bars.health - 1);
-                    this.updateHealthBars();
-                }
-                if (this.p2Bars.stamina > 0) {
-                    this.p2Bars.stamina = Math.max(0, this.p2Bars.stamina - 0.5); // Deplete stamina at half speed
-                    this.updateStaminaBars();
-                }
-            }
         }
     }
 
     startFightSequence() {
-        if (this.isFightSequencePlaying) return;
+        console.log('Starting fight sequence');
+        if (this.isFightSequencePlaying || !this.combatData) {
+            console.log('Cannot start sequence:', { 
+                isPlaying: this.isFightSequencePlaying, 
+                hasData: !!this.combatData 
+            });
+            return;
+        }
         this.isFightSequencePlaying = true;
 
-        // Reset positions first
+        // Reset positions
         this.player.x = this.playerStartX;
         this.player2.x = this.player2StartX;
 
-        // Clean up any existing listeners
-        this.player.removeAllListeners('animationcomplete-slashing');
-        this.player.removeAllListeners('animationcomplete-hurt');
-        this.player2.removeAllListeners('animationcomplete-slashing2');
-        this.player2.removeAllListeners('animationcomplete-hurt2');
-
-        // Calculate center point
-        const centerX = this.cameras.main.centerX;
-        
-        // Start running animations
+        console.log('Running to center');
+        // Initial run to center
         this.player.play('running');
         this.player2.play('running2');
 
-        // Tween for player 1
-        this.tweens.add({
-            targets: this.player,
-            x: centerX - 75,
-            duration: 1000,
-            onComplete: () => {
-                this.player.play('slashing');
-            }
-        });
+        // Move players to center
+        const moveToCenter = [
+            this.tweens.add({
+                targets: this.player,
+                x: this.centerX - 75,
+                duration: 1000,
+                onComplete: () => console.log('Player 1 reached center')
+            }),
+            this.tweens.add({
+                targets: this.player2,
+                x: this.centerX + 75,
+                duration: 1000,
+                onComplete: () => console.log('Player 2 reached center')
+            })
+        ];
 
-        // Tween for player 2
-        this.tweens.add({
-            targets: this.player2,
-            x: centerX + 75,
-            duration: 1000,
-            onComplete: () => {
-                this.player2.play('slashing2');
-            }
-        });
+        Promise.all(moveToCenter.map(tween => new Promise(resolve => tween.once('complete', resolve))))
+            .then(() => {
+                console.log('Both players at center, starting combat');
+                this.playCombatSequence(0);
+            });
+    }
 
-        // Listen for slash animation completion
-        this.player.once('animationcomplete-slashing', () => {
-            this.player.play('hurt');
-        });
-
-        this.player2.once('animationcomplete-slashing2', () => {
-            this.player2.play('hurt2');
-        });
-
-        // Listen for hurt animation completion
-        this.player.once('animationcomplete-hurt', () => {
-            this.player.play('dying');
-        });
-
-        this.player2.once('animationcomplete-hurt2', () => {
-            this.player2.play('dying2');
-        });
-
-        // Reset only the sequence flag after animations start
-        this.time.delayedCall(2000, () => {
+    playCombatSequence(actionIndex) {
+        console.log('Playing action', actionIndex);
+        const SEQUENCE_DELAY = 1500; // 1.5 second pause between sequences
+        
+        // Check if we've reached the end of actions
+        if (actionIndex >= this.combatData.actions.length) {
+            console.log('Combat sequence complete');
+            // Death animation should already be playing from the last hit
             this.isFightSequencePlaying = false;
+            return;
+        }
+
+        const action = this.combatData.actions[actionIndex];
+        const isLastAction = actionIndex === this.combatData.actions.length - 1;
+
+        // Helper to get animation based on result type
+        const getAnimation = (resultType, isPlayer2) => {
+            const suffix = isPlayer2 ? '2' : '';
+            const anim = {
+                'ATTACK': `slashing${suffix}`,
+                'BLOCK': `kicking${suffix}`,
+                'DODGE': `sliding${suffix}`,
+                'HIT': `hurt${suffix}`,
+                'MISS': `idle${suffix}`
+            }[resultType] || `idle${suffix}`;
+            return anim;
+        };
+
+        // Play animations
+        const p1Anim = getAnimation(action.p1Result, false);
+        const p2Anim = getAnimation(action.p2Result, true);
+        
+        console.log('Playing animations:', { p1: p1Anim, p2: p2Anim });
+        
+        // Play animations
+        this.player.play(p1Anim);
+        this.player2.play(p2Anim);
+
+        // Handle animation completion
+        this.player.once('animationcomplete', () => {
+            // If this is the last action and this player lost, play death animation
+            if (isLastAction && this.combatData.winner === 2) {
+                this.player.play('dying');
+            } else if (this.player.anims.currentAnim.key !== 'dying') {
+                this.player.play('idle');
+            }
         });
+
+        this.player2.once('animationcomplete', () => {
+            // If this is the last action and this player lost, play death animation
+            if (isLastAction && this.combatData.winner === 1) {
+                this.player2.play('dying2');
+            } else if (this.player2.anims.currentAnim.key !== 'dying2') {
+                this.player2.play('idle2');
+            }
+        });
+
+        // Only delay and continue if not the last action
+        if (!isLastAction) {
+            this.time.delayedCall(SEQUENCE_DELAY, () => {
+                this.playCombatSequence(actionIndex + 1);
+            });
+        }
     }
 
     updateHealthBars() {
