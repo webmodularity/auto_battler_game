@@ -182,7 +182,7 @@ export default class TitleScene extends Phaser.Scene {
                         this.cameras.main.fade(1000, 0, 0, 0);
                         this.time.delayedCall(1000, () => {
                             this.scene.start('FightScene', {
-                                combatLog: "0x020001160a05000005000001260a01160a05000002000c01000a01160a05000005000001260a"
+                                combatLog: "0x010000000303160f04000000000301140a05000005000001160a01140a05000005000001160a01140a05000004000000000301140a05000005000001160a01000a02000c03140f000003"
                             });
                         });
                     }

@@ -17,28 +17,18 @@ export default class FightScene extends Phaser.Scene {
             textureHeight: 64
         };
         this.combatData = null;
+        this.SEQUENCE_DELAY = 1500;  // Delay between actions
+        this.COUNTER_DELAY = 750;   // Delay for counter-attacks
+        this.INITIAL_DELAY = 1000;  // Delay before first action after reaching center
     }
 
     init(data) {
-        console.log('FightScene init called with data:', data);
-
         if (data.combatLog) {
-            const combatLog = "0x020001160a05000005000001260a01160a05000002000c01000a01160a05000005000001260a";
-            console.log('Raw combat log:', combatLog);
-            
             try {
-                this.combatData = decodeCombatLog(combatLog);
-                console.log('Decoded combat data:', this.combatData);
-                
-                console.log('Winner:', this.combatData.winner);
-                console.log('Condition:', this.combatData.condition);
-                console.log('Number of actions:', this.combatData.actions.length);
-                console.log('Actions:', JSON.stringify(this.combatData.actions, null, 2));
+                this.combatData = decodeCombatLog(data.combatLog);
             } catch (error) {
                 console.error('Error decoding combat log:', error);
             }
-        } else {
-            console.log('No combat log provided in scene data');
         }
     }
 
@@ -78,7 +68,8 @@ export default class FightScene extends Phaser.Scene {
             staminaHeight: 15,
             fillHeight: 27,
             padding: 2,
-            y: 30,
+            y: 50,
+            labelPadding: 30,
             staminaGap: 8,
             p1x: this.cameras.main.centerX - 420,
             p2x: this.cameras.main.centerX + 20,
@@ -209,6 +200,61 @@ export default class FightScene extends Phaser.Scene {
         this.time.delayedCall(1000, () => {
             this.startFightSequence();
         });
+
+        // Configure damage number style
+        this.damageNumberConfig = {
+            fontSize: {
+                damage: '48px',
+                text: '36px'
+            },
+            fontFamily: 'Sniglet',
+            duration: 1500,
+            rise: 150,
+            colors: {
+                damage: '#ff0000',
+                block: '#6666ff',
+                dodge: '#66ffff',
+                miss: '#ffffff',
+                counter: '#66ff66'
+            }
+        };
+
+        // Player labels - moved up 10px by subtracting from the y position
+        this.add.text(this.barConfig.p1x + this.barConfig.width - 5, 
+            this.barConfig.y - this.barConfig.labelPadding - 10,  // Subtract 10 from y position
+            'PLAYER 1', 
+            {
+                fontFamily: 'Sniglet',
+                fontSize: '24px',
+                color: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 4,
+                fontStyle: 'bold'
+            }
+        )
+        .setOrigin(1, 0)
+        .setDepth(98);
+
+        this.add.text(this.barConfig.p2x + 5, 
+            this.barConfig.y - this.barConfig.labelPadding - 10,  // Subtract 10 from y position
+            'PLAYER 2', 
+            {
+                fontFamily: 'Sniglet',
+                fontSize: '24px',
+                color: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 4,
+                fontStyle: 'bold'
+            }
+        )
+        .setOrigin(0, 0)
+        .setDepth(98);
+
+        // Add R key for reset with proper configuration
+        this.rKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+        
+        // Initialize fight sequence flag
+        this.isFightSequencePlaying = false;
     }
 
     createAnimations() {
@@ -247,7 +293,10 @@ export default class FightScene extends Phaser.Scene {
     }
 
     update() {
-        if (!this.keys || !this.player || !this.player2) return;
+        // Simplified R key check without debug logging
+        if (Phaser.Input.Keyboard.JustDown(this.rKey)) {
+            this.resetFight();
+        }
 
         // Dynamic depth adjustment based on who's attacking
         if (this.player.anims.currentAnim?.key === 'slashing' || 
@@ -270,21 +319,12 @@ export default class FightScene extends Phaser.Scene {
     }
 
     startFightSequence() {
-        console.log('Starting fight sequence');
         if (this.isFightSequencePlaying || !this.combatData) {
-            console.log('Cannot start sequence:', { 
-                isPlaying: this.isFightSequencePlaying, 
-                hasData: !!this.combatData 
-            });
             return;
         }
+
         this.isFightSequencePlaying = true;
-
-        // Reset positions
-        this.player.x = this.playerStartX;
-        this.player2.x = this.player2StartX;
-
-        console.log('Running to center');
+        
         // Initial run to center
         this.player.play('running');
         this.player2.play('running2');
@@ -294,66 +334,180 @@ export default class FightScene extends Phaser.Scene {
             this.tweens.add({
                 targets: this.player,
                 x: this.centerX - 75,
-                duration: 1000,
-                onComplete: () => console.log('Player 1 reached center')
+                duration: 1000
             }),
             this.tweens.add({
                 targets: this.player2,
                 x: this.centerX + 75,
-                duration: 1000,
-                onComplete: () => console.log('Player 2 reached center')
+                duration: 1000
             })
         ];
 
+        // Wait for both players to reach center, then start idle animations
         Promise.all(moveToCenter.map(tween => new Promise(resolve => tween.once('complete', resolve))))
             .then(() => {
-                console.log('Both players at center, starting combat');
-                this.playCombatSequence(0);
+                // Play idle animations first
+                this.player.play('idle');
+                this.player2.play('idle2');
+                
+                // Wait before starting the fight sequence
+                this.time.delayedCall(this.INITIAL_DELAY, () => {
+                    this.playCombatSequence(0);
+                });
             });
     }
 
     playCombatSequence(actionIndex) {
-        console.log('Playing action', actionIndex);
-        const SEQUENCE_DELAY = 1500; // 1.5 second pause between sequences
-        
-        // Check if we've reached the end of actions
-        if (actionIndex >= this.combatData.actions.length) {
-            console.log('Combat sequence complete');
-            // Death animation should already be playing from the last hit
-            this.isFightSequencePlaying = false;
-            return;
-        }
-
         const action = this.combatData.actions[actionIndex];
         const isLastAction = actionIndex === this.combatData.actions.length - 1;
 
-        // Helper to get animation based on result type
-        const getAnimation = (resultType, isPlayer2) => {
-            const suffix = isPlayer2 ? '2' : '';
-            const anim = {
-                'ATTACK': `slashing${suffix}`,
-                'BLOCK': `kicking${suffix}`,
-                'DODGE': `sliding${suffix}`,
-                'HIT': `hurt${suffix}`,
-                'MISS': `idle${suffix}`
-            }[resultType] || `idle${suffix}`;
-            return anim;
-        };
+        // Handle Player 1's MISS + Player 2's COUNTER sequence
+        if (action.p1Result === 'MISS' && action.p2Result === 'COUNTER') {
+            // First: Player 1's missed attack and MISS text
+            this.player.play('slashing');
+            this.showDamageNumber(this.player.x, this.player.y - 50, 'MISS', 'miss');
 
-        // Play animations
-        const p1Anim = getAnimation(action.p1Result, false);
-        const p2Anim = getAnimation(action.p2Result, true);
-        
-        console.log('Playing animations:', { p1: p1Anim, p2: p2Anim });
-        
-        // Play animations
-        this.player.play(p1Anim);
-        this.player2.play(p2Anim);
+            // Handle Player 1's slash animation completion
+            this.player.once('animationcomplete', () => {
+                this.player.play('idle');
+            });
 
-        // Handle animation completion
+            // After a short delay, show Player 2's counter sequence
+            this.time.delayedCall(this.COUNTER_DELAY, () => {
+                this.showDamageNumber(this.player2.x, this.player2.y - 50, 'COUNTER', 'counter');
+                this.player2.play('slashing2');
+                
+                // After the slash animation starts, show damage and hurt animation
+                this.time.delayedCall(400, () => {
+                    this.player.play('hurt');
+                    this.showDamageNumber(this.player.x, this.player.y - 50, action.p2Damage, 'damage');
+                    
+                    // Handle hurt animation completion and potential death
+                    this.player.once('animationcomplete', () => {
+                        if (isLastAction && this.combatData.winner === 2) {
+                            this.time.delayedCall(400, () => {  // Add delay before death animation
+                                this.player.play('dying');
+                            });
+                        } else if (!isLastAction) {
+                            this.player.play('idle');
+                        }
+                    });
+                });
+
+                this.player2.once('animationcomplete', () => {
+                    this.player2.play('idle2');
+                });
+            });
+        }
+        // Handle dodge sequences - add MISS for attacker
+        else if (action.p2Result === 'DODGE') {
+            this.player.play('slashing');
+            this.showDamageNumber(this.player.x, this.player.y - 50, 'MISS', 'miss');
+            this.player2.play('sliding2');
+            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'DODGE', 'dodge');
+        }
+        else if (action.p1Result === 'DODGE') {
+            this.player2.play('slashing2');
+            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'MISS', 'miss');
+            this.player.play('sliding');
+            this.showDamageNumber(this.player.x, this.player.y - 50, 'DODGE', 'dodge');
+        }
+        // Handle Player 2's MISS + Player 1's COUNTER sequence that ends the fight
+        else if (action.p2Result === 'MISS' && action.p1Result === 'COUNTER' && isLastAction) {
+            this.player2.play('slashing2');
+            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'MISS', 'miss');
+
+            this.time.delayedCall(this.COUNTER_DELAY, () => {
+                this.showDamageNumber(this.player.x, this.player.y - 50, 'COUNTER', 'counter');
+                this.player.play('slashing');
+                
+                this.time.delayedCall(400, () => {
+                    this.player2.play('hurt2');
+                    this.showDamageNumber(this.player2.x, this.player2.y - 50, action.p1Damage, 'damage');
+                    
+                    // Wait for hurt animation to complete before dying
+                    this.player2.once('animationcomplete', () => {
+                        this.player2.play('dying2');
+                    });
+                });
+            });
+        }
+        // Handle regular MISS animations (not part of counter)
+        else if (action.p1Result === 'MISS' && action.p2Result !== 'DODGE' && action.p2Result !== 'BLOCK') {
+            this.player.play('slashing');
+            this.showDamageNumber(this.player.x, this.player.y - 50, 'MISS', 'miss');
+            
+            this.player.once('animationcomplete', () => {
+                this.player.play('idle');
+            });
+        }
+        else if (action.p2Result === 'MISS' && action.p1Result !== 'DODGE' && action.p1Result !== 'BLOCK') {
+            this.player2.play('slashing2');
+            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'MISS', 'miss');
+            
+            this.player2.once('animationcomplete', () => {
+                this.player2.play('idle2');
+            });
+        }
+
+        // Handle Attack + Block sequence
+        else if (action.p1Result === 'ATTACK' && action.p2Result === 'BLOCK') {
+            this.player.play('slashing');
+            
+            this.time.delayedCall(this.COUNTER_DELAY, () => {
+                this.player2.play('kicking2');
+                this.showDamageNumber(this.player2.x, this.player2.y - 50, 'BLOCK', 'block');
+            });
+        }
+        // Handle Player 2's MISS + Player 1's COUNTER sequence
+        else if (action.p2Result === 'MISS' && action.p1Result === 'COUNTER') {
+            this.player2.play('slashing2');
+            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'MISS', 'miss');
+
+            this.player2.once('animationcomplete', () => {
+                this.player2.play('idle2');
+            });
+
+            this.time.delayedCall(this.COUNTER_DELAY, () => {
+                this.showDamageNumber(this.player.x, this.player.y - 50, 'COUNTER', 'counter');
+                this.player.play('slashing');
+                
+                this.time.delayedCall(400, () => {
+                    this.player2.play('hurt2');
+                    this.showDamageNumber(this.player2.x, this.player2.y - 50, action.p1Damage, 'damage');
+                    
+                    // Handle hurt animation completion and potential death
+                    this.player2.once('animationcomplete', () => {
+                        if (isLastAction && this.combatData.winner === 1) {
+                            this.time.delayedCall(400, () => {  // Add delay before death animation
+                                this.player2.play('dying2');
+                            });
+                        } else if (!isLastAction) {
+                            this.player2.play('idle2');
+                        }
+                    });
+                });
+
+                this.player.once('animationcomplete', () => {
+                    this.player.play('idle');
+                });
+            });
+        }
+        // Handle regular attacks
+        else if (action.p1Result === 'ATTACK' && action.p1Damage > 0) {
+            this.player.play('slashing');
+            this.showDamageNumber(this.player2.x, this.player2.y - 50, action.p1Damage, 'damage');
+            this.player2.play('hurt2');
+        }
+        else if (action.p2Result === 'ATTACK' && action.p2Damage > 0) {
+            this.player2.play('slashing2');
+            this.showDamageNumber(this.player.x, this.player.y - 50, action.p2Damage, 'damage');
+            this.player.play('hurt');
+        }
+
+        // Handle animation completion for both players
         this.player.once('animationcomplete', () => {
-            // If this is the last action and this player lost, play death animation
-            if (isLastAction && this.combatData.winner === 2) {
+            if (isLastAction && this.combatData.winner === 2 && action.p1Result !== 'COUNTER') {
                 this.player.play('dying');
             } else if (this.player.anims.currentAnim.key !== 'dying') {
                 this.player.play('idle');
@@ -361,20 +515,53 @@ export default class FightScene extends Phaser.Scene {
         });
 
         this.player2.once('animationcomplete', () => {
-            // If this is the last action and this player lost, play death animation
-            if (isLastAction && this.combatData.winner === 1) {
+            if (isLastAction && this.combatData.winner === 1 && action.p2Result !== 'MISS') {
                 this.player2.play('dying2');
             } else if (this.player2.anims.currentAnim.key !== 'dying2') {
                 this.player2.play('idle2');
             }
         });
 
-        // Only delay and continue if not the last action
+        // Continue to next action
         if (!isLastAction) {
-            this.time.delayedCall(SEQUENCE_DELAY, () => {
+            const delay = (action.p2Result === 'BLOCK' || action.p1Result === 'COUNTER' || 
+                          action.p2Result === 'COUNTER' || action.p1Result === 'BLOCK')
+                ? this.SEQUENCE_DELAY + this.COUNTER_DELAY 
+                : this.SEQUENCE_DELAY;
+            this.time.delayedCall(delay, () => {
                 this.playCombatSequence(actionIndex + 1);
             });
         }
+    }
+
+    showDamageNumber(x, y, value, type = 'damage') {
+        const color = this.damageNumberConfig.colors[type];
+        const fontSize = typeof value === 'number' 
+            ? this.damageNumberConfig.fontSize.damage 
+            : this.damageNumberConfig.fontSize.text;
+
+        const text = this.add.text(x, y - 50, value, {  // Start higher above head
+            fontSize: fontSize,
+            fontFamily: this.damageNumberConfig.fontFamily,
+            color: color,
+            stroke: '#000000',
+            strokeThickness: 4,
+            fontStyle: 'bold'
+        })
+        .setOrigin(0.5, 0.5)
+        .setDepth(100);
+
+        // Add rise-and-fade animation
+        this.tweens.add({
+            targets: text,
+            y: y - this.damageNumberConfig.rise - 50,  // Rise from higher starting point
+            alpha: 0,
+            duration: this.damageNumberConfig.duration,
+            ease: 'Power1',
+            onComplete: () => {
+                text.destroy();
+            }
+        });
     }
 
     updateHealthBars() {
@@ -430,5 +617,26 @@ export default class FightScene extends Phaser.Scene {
             p2StaminaWidth,
             this.barConfig.textureHeight
         ).setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight);
+    }
+
+    // Add a proper reset method
+    resetFight() {
+        this.isFightSequencePlaying = false;
+        
+        // Reset players to initial positions
+        this.player.x = this.playerStartX;
+        this.player2.x = this.player2StartX;
+        
+        // Reset animations
+        this.player.play('idle');
+        this.player2.play('idle2');
+        
+        // Clear any ongoing tweens
+        this.tweens.killAll();
+        
+        // Start a new sequence
+        this.time.delayedCall(500, () => {
+            this.startFightSequence();
+        });
     }
 }
