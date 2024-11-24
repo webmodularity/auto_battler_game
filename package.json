@@ -14,7 +14,8 @@
   "description": "",
   "dependencies": {
     "phaser": "^3.87.0",
-    "viem": "^2.21.49"
+    "viem": "^2.21.49",
+    "webfontloader": "^1.6.28"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.3",

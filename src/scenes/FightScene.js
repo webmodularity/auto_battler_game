@@ -1,5 +1,6 @@
 import * as Phaser from 'phaser';
 import { decodeCombatLog } from '../utils/combatDecoder';
+import * as WebFont from 'webfontloader';
 
 export default class FightScene extends Phaser.Scene {
     constructor() {
@@ -20,6 +21,16 @@ export default class FightScene extends Phaser.Scene {
         this.SEQUENCE_DELAY = 2500;  // Changed from 1500 to 2500
         this.COUNTER_DELAY = 1250;   // Changed from 750 to 1250 (half of SEQUENCE_DELAY)
         this.INITIAL_DELAY = 1000;   // Kept the same
+        this.countdownConfig = {
+            fontSize: '120px',
+            fontFamily: 'Bokor',
+            color: '#ffffff',
+            stroke: '#000000',
+            strokeThickness: 8,
+            duration: 750,
+            scale: { from: 2, to: 0.5 },
+            alpha: { from: 1, to: 0 }
+        };
     }
 
     init(data) {
@@ -204,12 +215,12 @@ export default class FightScene extends Phaser.Scene {
         // Configure damage number style
         this.damageNumberConfig = {
             fontSize: {
-                damage: '48px',
-                text: '36px'
+                damage: '64px',
+                text: '52px'
             },
-            fontFamily: 'Sniglet',
+            fontFamily: 'Bokor',
             duration: 1500,
-            rise: 150,
+            rise: 200,
             colors: {
                 damage: '#ff0000',
                 block: '#6666ff',
@@ -219,36 +230,42 @@ export default class FightScene extends Phaser.Scene {
             }
         };
 
-        // Player labels - moved up 10px by subtracting from the y position
-        this.add.text(this.barConfig.p1x + this.barConfig.width - 5, 
-            this.barConfig.y - this.barConfig.labelPadding - 10,  // Subtract 10 from y position
-            'PLAYER 1', 
-            {
-                fontFamily: 'Sniglet',
-                fontSize: '24px',
-                color: '#ffffff',
-                stroke: '#000000',
-                strokeThickness: 4,
-                fontStyle: 'bold'
-            }
-        )
-        .setOrigin(1, 0)
-        .setDepth(98);
+        // Load fonts before creating text
+        WebFont.load({
+            google: {
+                families: ['Bokor']
+            },
+            active: () => {
+                // Player labels - moved up 10px
+                this.add.text(this.barConfig.p1x + this.barConfig.width - 5, 
+                    this.barConfig.y - this.barConfig.labelPadding - 10,  // Added extra 10px up
+                    'PLAYER 1', 
+                    {
+                        fontFamily: 'Bokor',
+                        fontSize: '32px',
+                        color: '#ffffff',
+                        stroke: '#000000',
+                        strokeThickness: 4
+                    }
+                )
+                .setOrigin(1, 0)
+                .setDepth(98);
 
-        this.add.text(this.barConfig.p2x + 5, 
-            this.barConfig.y - this.barConfig.labelPadding - 10,  // Subtract 10 from y position
-            'PLAYER 2', 
-            {
-                fontFamily: 'Sniglet',
-                fontSize: '24px',
-                color: '#ffffff',
-                stroke: '#000000',
-                strokeThickness: 4,
-                fontStyle: 'bold'
+                this.add.text(this.barConfig.p2x + 5, 
+                    this.barConfig.y - this.barConfig.labelPadding - 10,  // Added extra 10px up
+                    'PLAYER 2', 
+                    {
+                        fontFamily: 'Bokor',
+                        fontSize: '32px',
+                        color: '#ffffff',
+                        stroke: '#000000',
+                        strokeThickness: 4
+                    }
+                )
+                .setOrigin(0, 0)
+                .setDepth(98);
             }
-        )
-        .setOrigin(0, 0)
-        .setDepth(98);
+        });
 
         // Add R key for reset with proper configuration
         this.rKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
@@ -351,36 +368,122 @@ export default class FightScene extends Phaser.Scene {
 
         this.isFightSequencePlaying = true;
         
-        // Initial run to center
-        this.player.play('running');
-        this.player2.play('running2');
+        // Start countdown sequence
+        this.startCountdown().then(() => {
+            // Initial run to center (moved from original startFightSequence)
+            this.player.play('running');
+            this.player2.play('running2');
 
-        // Move players to center
-        const moveToCenter = [
-            this.tweens.add({
-                targets: this.player,
-                x: this.centerX - 75,
-                duration: 1000
-            }),
-            this.tweens.add({
-                targets: this.player2,
-                x: this.centerX + 75,
-                duration: 1000
-            })
-        ];
+            // Move players to center
+            const moveToCenter = [
+                this.tweens.add({
+                    targets: this.player,
+                    x: this.centerX - 75,
+                    duration: 1000
+                }),
+                this.tweens.add({
+                    targets: this.player2,
+                    x: this.centerX + 75,
+                    duration: 1000
+                })
+            ];
 
-        // Wait for both players to reach center, then start idle animations
-        Promise.all(moveToCenter.map(tween => new Promise(resolve => tween.once('complete', resolve))))
-            .then(() => {
-                // Play idle animations first
-                this.player.play('idle');
-                this.player2.play('idle2');
-                
-                // Wait before starting the fight sequence
-                this.time.delayedCall(this.INITIAL_DELAY, () => {
-                    this.playCombatSequence(0);
+            // Rest of the existing startFightSequence code...
+            Promise.all(moveToCenter.map(tween => new Promise(resolve => tween.once('complete', resolve))))
+                .then(() => {
+                    this.player.play('idle');
+                    this.player2.play('idle2');
+                    
+                    this.time.delayedCall(this.INITIAL_DELAY, () => {
+                        this.playCombatSequence(0);
+                    });
                 });
-            });
+        });
+    }
+
+    // Add new countdown method
+    startCountdown() {
+        return new Promise(resolve => {
+            const numbers = ['3', '2', '1', 'FIGHT!'];
+            let index = 0;
+
+            const showNumber = () => {
+                if (index >= numbers.length) {
+                    resolve();
+                    return;
+                }
+
+                const number = numbers[index];
+                const text = this.add.text(
+                    this.cameras.main.centerX,
+                    this.cameras.main.centerY,
+                    number,
+                    {
+                        fontFamily: 'Bokor',
+                        fontSize: number === 'FIGHT!' ? '150px' : '240px',
+                        color: number === 'FIGHT!' ? '#ff3333' : '#ffffff',
+                        stroke: '#000000',
+                        strokeThickness: 8
+                    }
+                )
+                .setOrigin(0.5)
+                .setDepth(100);
+
+                if (number === 'FIGHT!') {
+                    // Start with transparent text
+                    text.setAlpha(0);
+                    
+                    // Fade in
+                    this.tweens.add({
+                        targets: text,
+                        alpha: 1,
+                        duration: 500,
+                        ease: 'Power1',
+                        onComplete: () => {
+                            // Wait briefly, then fade out
+                            this.time.delayedCall(750, () => {
+                                this.tweens.add({
+                                    targets: text,
+                                    alpha: 0,
+                                    duration: 500,
+                                    ease: 'Power1',
+                                    onComplete: () => {
+                                        text.destroy();
+                                        index++;
+                                        showNumber();
+                                    }
+                                });
+                            });
+                        }
+                    });
+                } else {
+                    // Original fade effect for numbers
+                    this.tweens.add({
+                        targets: text,
+                        scale: this.countdownConfig.scale.to,
+                        alpha: this.countdownConfig.alpha.to,
+                        duration: this.countdownConfig.duration,
+                        ease: 'Power2',
+                        onComplete: () => {
+                            text.destroy();
+                            index++;
+                            showNumber();
+                        }
+                    });
+
+                    // Bounce effect only for numbers
+                    this.tweens.add({
+                        targets: text,
+                        y: text.y - 30,
+                        duration: this.countdownConfig.duration / 2,
+                        yoyo: true,
+                        ease: 'Bounce.easeOut'
+                    });
+                }
+            };
+
+            showNumber();
+        });
     }
 
     playCombatSequence(actionIndex) {
@@ -391,12 +494,12 @@ export default class FightScene extends Phaser.Scene {
         if (action.p1Result === 'MISS' && action.p2Result === 'COUNTER') {
             // First: Player 1's missed attack and MISS text
             this.player.play('slashing');
-            this.showDamageNumber(this.player.x, this.player.y - 50, 'MISS', 'miss');
+            this.showDamageNumber(this.player.x, this.player.y - 50, 'Miss', 'miss');
 
             // Handle Player 1's slash animation completion
             this.player.once('animationcomplete', () => {
                 // Immediately start counter sequence
-                this.showDamageNumber(this.player2.x, this.player2.y - 50, 'COUNTER', 'counter');
+                this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Counter', 'counter');
                 this.player2.play('slashing2');
                 
                 // Short delay before damage
@@ -424,24 +527,24 @@ export default class FightScene extends Phaser.Scene {
         // Handle dodge sequences - add MISS for attacker
         else if (action.p2Result === 'DODGE') {
             this.player.play('slashing');
-            this.showDamageNumber(this.player.x, this.player.y - 50, 'MISS', 'miss');
+            this.showDamageNumber(this.player.x, this.player.y - 50, 'Miss', 'miss');
             this.player2.play('sliding2');
-            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'DODGE', 'dodge');
+            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Dodge', 'dodge');
         }
         else if (action.p1Result === 'DODGE') {
             this.player2.play('slashing2');
-            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'MISS', 'miss');
+            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
             this.player.play('sliding');
-            this.showDamageNumber(this.player.x, this.player.y - 50, 'DODGE', 'dodge');
+            this.showDamageNumber(this.player.x, this.player.y - 50, 'Dodge', 'dodge');
         }
         // Handle Player 2's MISS + Player 1's COUNTER sequence that ends the fight
         else if (action.p2Result === 'MISS' && action.p1Result === 'COUNTER' && isLastAction) {
             this.player2.play('slashing2');
-            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'MISS', 'miss');
+            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
 
             this.player2.once('animationcomplete', () => {
                 // Immediately start counter sequence
-                this.showDamageNumber(this.player.x, this.player.y - 50, 'COUNTER', 'counter');
+                this.showDamageNumber(this.player.x, this.player.y - 50, 'Counter', 'counter');
                 this.player.play('slashing');
                 
                 this.time.delayedCall(400, () => {
@@ -458,7 +561,7 @@ export default class FightScene extends Phaser.Scene {
         // Handle regular MISS animations (not part of counter)
         else if (action.p1Result === 'MISS' && action.p2Result !== 'DODGE' && action.p2Result !== 'BLOCK') {
             this.player.play('slashing');
-            this.showDamageNumber(this.player.x, this.player.y - 50, 'MISS', 'miss');
+            this.showDamageNumber(this.player.x, this.player.y - 50, 'Miss', 'miss');
             
             this.player.once('animationcomplete', () => {
                 this.player.play('idle');
@@ -466,7 +569,7 @@ export default class FightScene extends Phaser.Scene {
         }
         else if (action.p2Result === 'MISS' && action.p1Result !== 'DODGE' && action.p1Result !== 'BLOCK') {
             this.player2.play('slashing2');
-            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'MISS', 'miss');
+            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
             
             this.player2.once('animationcomplete', () => {
                 this.player2.play('idle2');
@@ -478,17 +581,17 @@ export default class FightScene extends Phaser.Scene {
             this.player.play('slashing');
             this.time.delayedCall(400, () => {
                 this.player2.play('kicking2');
-                this.showDamageNumber(this.player2.x, this.player2.y - 50, 'BLOCK', 'block');
+                this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Block', 'block');
             });
         }
         // Handle Player 2's MISS + Player 1's COUNTER sequence
         else if (action.p2Result === 'MISS' && action.p1Result === 'COUNTER') {
             this.player2.play('slashing2');
-            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'MISS', 'miss');
+            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
 
             this.player2.once('animationcomplete', () => {
                 // Immediately start counter sequence
-                this.showDamageNumber(this.player.x, this.player.y - 50, 'COUNTER', 'counter');
+                this.showDamageNumber(this.player.x, this.player.y - 50, 'Counter', 'counter');
                 this.player.play('slashing');
                 
                 this.time.delayedCall(400, () => {
@@ -514,7 +617,7 @@ export default class FightScene extends Phaser.Scene {
         // Handle regular attacks
         else if (action.p1Result === 'ATTACK' && action.p1Damage > 0) {
             this.player.play('slashing');
-            this.showDamageNumber(this.player.x, this.player.y - 50, 'HIT', 'miss');  // Using 'miss' type for white color
+            this.showDamageNumber(this.player.x, this.player.y - 50, 'Hit', 'miss');  // Back to normal HIT
             this.time.delayedCall(400, () => {
                 this.showDamageNumber(this.player2.x, this.player2.y - 50, action.p1Damage, 'damage');
                 this.player2.play('hurt2');
@@ -522,7 +625,7 @@ export default class FightScene extends Phaser.Scene {
         }
         else if (action.p2Result === 'ATTACK' && action.p2Damage > 0) {
             this.player2.play('slashing2');
-            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'HIT', 'miss');  // Using 'miss' type for white color
+            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Hit', 'miss');  // Back to normal HIT
             this.time.delayedCall(400, () => {
                 this.showDamageNumber(this.player.x, this.player.y - 50, action.p2Damage, 'damage');
                 this.player.play('hurt');
@@ -581,7 +684,64 @@ export default class FightScene extends Phaser.Scene {
         const finalPosition = isPlayer2 ? originalX + 200 : originalX - 200;
         
         this.time.delayedCall(1500, () => {
-            // First walk
+            // First add Victory text
+            const victoryText = this.add.text(
+                this.cameras.main.centerX,
+                this.cameras.main.centerY - 40,  // Moved up a bit to make room for player text
+                'Victory',
+                {
+                    fontFamily: 'Bokor',
+                    fontSize: '120px',
+                    color: '#ff3333',
+                    stroke: '#000000',
+                    strokeThickness: 8,
+                    align: 'center'
+                }
+            )
+            .setOrigin(0.5)
+            .setDepth(100)
+            .setAlpha(0);
+
+            // Fade in Victory text first
+            this.tweens.add({
+                targets: victoryText,
+                alpha: 1,
+                duration: 1000,
+                ease: 'Power1',
+                onComplete: () => {
+                    // After Victory text is in, add Player text
+                    const playerText = this.add.text(
+                        this.cameras.main.centerX,
+                        this.cameras.main.centerY + 40,  // Below Victory text
+                        `Player ${isPlayer2 ? '2' : '1'}`,
+                        {
+                            fontFamily: 'Bokor',
+                            fontSize: '60px',  // Half size of Victory text
+                            color: '#ff3333',
+                            stroke: '#000000',
+                            strokeThickness: 6,
+                            align: 'center'
+                        }
+                    )
+                    .setOrigin(0.5)
+                    .setDepth(100)
+                    .setAlpha(0);
+
+                    // Slide in and fade in player text
+                    this.tweens.add({
+                        targets: playerText,
+                        alpha: 1,
+                        x: {
+                            from: this.cameras.main.centerX - 100,  // Start left of center
+                            to: this.cameras.main.centerX
+                        },
+                        duration: 800,
+                        ease: 'Power2'
+                    });
+                }
+            });
+
+            // Rest of victory sequence...
             winner.setFlipX(true);
             winner.play(isPlayer2 ? 'walking2' : 'walking');
             
@@ -638,7 +798,7 @@ export default class FightScene extends Phaser.Scene {
             ? this.damageNumberConfig.fontSize.damage 
             : this.damageNumberConfig.fontSize.text;
 
-        const text = this.add.text(x, y - 50, value, {  // Start higher above head
+        const text = this.add.text(x, y - 50, value, {
             fontSize: fontSize,
             fontFamily: this.damageNumberConfig.fontFamily,
             color: color,
@@ -652,7 +812,7 @@ export default class FightScene extends Phaser.Scene {
         // Add rise-and-fade animation
         this.tweens.add({
             targets: text,
-            y: y - this.damageNumberConfig.rise - 50,  // Rise from higher starting point
+            y: y - this.damageNumberConfig.rise - 50,
             alpha: 0,
             duration: this.damageNumberConfig.duration,
             ease: 'Power1',
