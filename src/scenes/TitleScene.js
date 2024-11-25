@@ -1,4 +1,5 @@
 import * as Phaser from 'phaser';
+import WebFont from 'webfontloader';
 
 export default class TitleScene extends Phaser.Scene {
     constructor() {
@@ -10,6 +11,9 @@ export default class TitleScene extends Phaser.Scene {
     }
 
     preload() {
+        // Add WebFont import at top of file if not already present
+        this.load.script('webfont', 'https://ajax.googleapis.com/ajax/libs/webfont/1.6.26/webfont.js');
+        
         // Load forest1 background layers
         this.load.image('sky', '/assets/backgrounds/forest1/Sky.png');
         this.load.image('bg-decor', '/assets/backgrounds/forest1/BG_Decor.png');
@@ -56,26 +60,86 @@ export default class TitleScene extends Phaser.Scene {
         // Create UI container with adjusted positions
         this.uiContainer = this.add.container(0, 0).setScrollFactor(0).setDepth(20);
 
-        // Move title text higher up
-        const titleText = this.add.text(width/2, height/6, 'KNIGHT FIGHT', {
-            font: '64px monospace',
-            fill: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 6,
-            shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 5, fill: true }
-        }).setOrigin(0.5);
+        // Load fonts before creating text
+        WebFont.load({
+            google: {
+                families: ['Bokor']
+            },
+            active: () => {
+                // Create main title with enhanced gaming style effects
+                const shadowText = this.add.text(width/2 + 4, (height/3) - 40, 'Heavy Helms', {
+                    fontFamily: 'Bokor',
+                    fontSize: '144px',
+                    color: '#000000',
+                    alpha: 0.7
+                }).setOrigin(0.5);
 
-        // Move start text higher up
-        const startText = this.add.text(width/2, height/3, 'Run Right to Fight!', {
-            font: '32px monospace',
-            fill: '#ffffff',
-            stroke: '#000000',
-            strokeThickness: 4,
-            shadow: { offsetX: 2, offsetY: 2, color: '#000000', blur: 5, fill: true }
-        }).setOrigin(0.5);
+                const mainText = this.add.text(width/2, (height/3) - 40, 'Heavy Helms', {
+                    fontFamily: 'Bokor',
+                    fontSize: '140px',
+                    color: '#ffd700', // Golden color
+                    stroke: '#8b0000', // Dark red stroke
+                    strokeThickness: 12,
+                    shadow: { 
+                        offsetX: 2, 
+                        offsetY: 2, 
+                        color: '#000000', 
+                        blur: 5, 
+                        fill: true,
+                        stroke: true  // Added to ensure shadow applies to entire text
+                    }
+                }).setOrigin(0.5);
 
-        // Add texts to UI container
-        this.uiContainer.add([titleText, startText]);
+                // Add a metallic gradient overlay effect
+                const metalGradient = this.add.text(width/2, (height/3) - 40, 'Heavy Helms', {
+                    fontFamily: 'Bokor',
+                    fontSize: '140px',
+                    color: '#ffffff',
+                }).setOrigin(0.5).setAlpha(0.3);
+
+                // Set initial state for entrance animation
+                [shadowText, mainText, metalGradient].forEach(text => {
+                    text.setAlpha(0);
+                    text.y -= 50; // Start slightly above final position
+                });
+
+                // Create entrance animation
+                this.tweens.add({
+                    targets: [shadowText, mainText, metalGradient],
+                    y: `+=${50}`,
+                    alpha: {
+                        from: 0,
+                        to: (target) => target === metalGradient ? 0.3 : target === shadowText ? 0.7 : 1
+                    },
+                    duration: 1000,
+                    ease: 'Back.out',
+                    onComplete: () => {
+                        // Start the floating animation after entrance
+                        this.tweens.add({
+                            targets: [mainText, shadowText, metalGradient],
+                            y: '+=10',
+                            duration: 2000,
+                            yoyo: true,
+                            repeat: -1,
+                            ease: 'Sine.inOut'
+                        });
+
+                        // Add a pulsing effect to the metallic overlay
+                        this.tweens.add({
+                            targets: metalGradient,
+                            alpha: 0.1,
+                            duration: 1500,
+                            yoyo: true,
+                            repeat: -1,
+                            ease: 'Sine.inOut'
+                        });
+                    }
+                });
+
+                // Add texts to UI container
+                this.uiContainer.add([shadowText, mainText, metalGradient]);
+            }
+        });
 
         // Increase sprite width buffer for tighter boundaries
         const SPRITE_WIDTH = 75;  // Increased from 50 to 75 for more padding
@@ -182,7 +246,7 @@ export default class TitleScene extends Phaser.Scene {
                         this.cameras.main.fade(1000, 0, 0, 0);
                         this.time.delayedCall(1000, () => {
                             this.scene.start('FightScene', {
-                                combatLog: "0x010000000303160f04000000000301140a05000005000001160a01140a05000005000001160a01140a05000004000000000301140a05000005000001160a01000a02000c03140f000003"
+                                combatLog: "0x0200000003040000040000000003012c0a050000050000012c0a012c0a050000032c0f00000300000304000004000000000301000a02000c050000012c0a000003040000032c0f000003000003040000050000012c0a"
                             });
                         });
                     }

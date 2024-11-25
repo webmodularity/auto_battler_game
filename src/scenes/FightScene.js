@@ -31,6 +31,36 @@ export default class FightScene extends Phaser.Scene {
             scale: { from: 2, to: 0.5 },
             alpha: { from: 1, to: 0 }
         };
+
+        // Add shared text style config
+        this.titleTextConfig = {
+            main: {
+                fontFamily: 'Bokor',
+                fontSize: '140px',
+                color: '#ffd700', // Golden color
+                stroke: '#8b0000', // Dark red stroke
+                strokeThickness: 12,
+                shadow: { 
+                    offsetX: 2, 
+                    offsetY: 2, 
+                    color: '#000000', 
+                    blur: 5, 
+                    fill: true,
+                    stroke: true
+                }
+            },
+            shadow: {
+                fontFamily: 'Bokor',
+                fontSize: '144px',
+                color: '#000000',
+                alpha: 0.7
+            },
+            metallic: {
+                fontFamily: 'Bokor',
+                fontSize: '140px',
+                color: '#ffffff'
+            }
+        };
     }
 
     init(data) {
@@ -404,7 +434,7 @@ export default class FightScene extends Phaser.Scene {
     // Add new countdown method
     startCountdown() {
         return new Promise(resolve => {
-            const numbers = ['3', '2', '1', 'FIGHT!'];
+            const numbers = ['3', '2', '1', 'Fight!'];
             let index = 0;
 
             const showNumber = () => {
@@ -414,41 +444,46 @@ export default class FightScene extends Phaser.Scene {
                 }
 
                 const number = numbers[index];
-                const text = this.add.text(
+                const scale = number === 'Fight!' ? 1.25 : 2;
+                const texts = this.createStyledText(
                     this.cameras.main.centerX,
                     this.cameras.main.centerY,
                     number,
-                    {
-                        fontFamily: 'Bokor',
-                        fontSize: number === 'FIGHT!' ? '150px' : '240px',
-                        color: number === 'FIGHT!' ? '#ff3333' : '#ffffff',
-                        stroke: '#000000',
-                        strokeThickness: 8
-                    }
-                )
-                .setOrigin(0.5)
-                .setDepth(100);
+                    scale
+                );
 
-                if (number === 'FIGHT!') {
-                    // Start with transparent text
+                // Set initial state
+                [texts.shadowText, texts.mainText, texts.metalGradient].forEach(text => {
                     text.setAlpha(0);
-                    
-                    // Fade in
+                    text.setDepth(100);
+                });
+
+                if (number === 'Fight!') {
+                    // Special animation for "Fight!"
                     this.tweens.add({
-                        targets: text,
-                        alpha: 1,
+                        targets: [texts.shadowText, texts.mainText, texts.metalGradient],
+                        alpha: {
+                            from: 0,
+                            to: (target) => target === texts.metalGradient ? 0.3 : target === texts.shadowText ? 0.7 : 1
+                        },
+                        scale: {
+                            from: scale * 1.5,
+                            to: scale
+                        },
                         duration: 500,
-                        ease: 'Power1',
+                        ease: 'Back.out',
                         onComplete: () => {
-                            // Wait briefly, then fade out
                             this.time.delayedCall(750, () => {
                                 this.tweens.add({
-                                    targets: text,
+                                    targets: [texts.shadowText, texts.mainText, texts.metalGradient],
                                     alpha: 0,
+                                    scale: scale * 0.8,
                                     duration: 500,
-                                    ease: 'Power1',
+                                    ease: 'Power2',
                                     onComplete: () => {
-                                        text.destroy();
+                                        texts.shadowText.destroy();
+                                        texts.mainText.destroy();
+                                        texts.metalGradient.destroy();
                                         index++;
                                         showNumber();
                                     }
@@ -457,33 +492,50 @@ export default class FightScene extends Phaser.Scene {
                         }
                     });
                 } else {
-                    // Original fade effect for numbers
+                    // Numbers animation
                     this.tweens.add({
-                        targets: text,
-                        scale: this.countdownConfig.scale.to,
-                        alpha: this.countdownConfig.alpha.to,
+                        targets: [texts.shadowText, texts.mainText, texts.metalGradient],
+                        alpha: {
+                            from: 0,
+                            to: (target) => target === texts.metalGradient ? 0.3 : target === texts.shadowText ? 0.7 : 1
+                        },
+                        scale: {
+                            from: scale * 1.5,
+                            to: scale * 0.5
+                        },
                         duration: this.countdownConfig.duration,
                         ease: 'Power2',
                         onComplete: () => {
-                            text.destroy();
+                            texts.shadowText.destroy();
+                            texts.mainText.destroy();
+                            texts.metalGradient.destroy();
                             index++;
                             showNumber();
                         }
-                    });
-
-                    // Bounce effect only for numbers
-                    this.tweens.add({
-                        targets: text,
-                        y: text.y - 30,
-                        duration: this.countdownConfig.duration / 2,
-                        yoyo: true,
-                        ease: 'Bounce.easeOut'
                     });
                 }
             };
 
             showNumber();
         });
+    }
+
+    // Add helper method for creating styled text
+    createStyledText(x, y, text, scale = 1) {
+        const shadowText = this.add.text(x + 4, y, text, this.titleTextConfig.shadow)
+            .setOrigin(0.5)
+            .setScale(scale);
+
+        const mainText = this.add.text(x, y, text, this.titleTextConfig.main)
+            .setOrigin(0.5)
+            .setScale(scale);
+
+        const metalGradient = this.add.text(x, y, text, this.titleTextConfig.metallic)
+            .setOrigin(0.5)
+            .setAlpha(0.3)
+            .setScale(scale);
+
+        return { shadowText, mainText, metalGradient };
     }
 
     playCombatSequence(actionIndex) {
