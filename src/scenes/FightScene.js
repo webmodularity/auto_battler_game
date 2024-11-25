@@ -541,9 +541,11 @@ export default class FightScene extends Phaser.Scene {
     playCombatSequence(actionIndex) {
         const action = this.combatData.actions[actionIndex];
         const isLastAction = actionIndex === this.combatData.actions.length - 1;
+        let animationTriggered = false;
 
         // Handle Player 1's MISS + Player 2's COUNTER sequence
         if (action.p1Result === 'MISS' && action.p2Result === 'COUNTER') {
+            animationTriggered = true;
             // First: Player 1's missed attack and MISS text
             this.player.play('slashing');
             this.showDamageNumber(this.player.x, this.player.y - 50, 'Miss', 'miss');
@@ -578,12 +580,14 @@ export default class FightScene extends Phaser.Scene {
         }
         // Handle dodge sequences - add MISS for attacker
         else if (action.p2Result === 'DODGE') {
+            animationTriggered = true;
             this.player.play('slashing');
             this.showDamageNumber(this.player.x, this.player.y - 50, 'Miss', 'miss');
             this.player2.play('sliding2');
             this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Dodge', 'dodge');
         }
         else if (action.p1Result === 'DODGE') {
+            animationTriggered = true;
             this.player2.play('slashing2');
             this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
             this.player.play('sliding');
@@ -591,6 +595,7 @@ export default class FightScene extends Phaser.Scene {
         }
         // Handle Player 2's MISS + Player 1's COUNTER sequence that ends the fight
         else if (action.p2Result === 'MISS' && action.p1Result === 'COUNTER' && isLastAction) {
+            animationTriggered = true;
             this.player2.play('slashing2');
             this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
 
@@ -612,6 +617,7 @@ export default class FightScene extends Phaser.Scene {
         }
         // Handle regular MISS animations (not part of counter)
         else if (action.p1Result === 'MISS' && action.p2Result !== 'DODGE' && action.p2Result !== 'BLOCK') {
+            animationTriggered = true;
             this.player.play('slashing');
             this.showDamageNumber(this.player.x, this.player.y - 50, 'Miss', 'miss');
             
@@ -620,6 +626,7 @@ export default class FightScene extends Phaser.Scene {
             });
         }
         else if (action.p2Result === 'MISS' && action.p1Result !== 'DODGE' && action.p1Result !== 'BLOCK') {
+            animationTriggered = true;
             this.player2.play('slashing2');
             this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
             
@@ -628,46 +635,27 @@ export default class FightScene extends Phaser.Scene {
             });
         }
 
-        // Handle Attack + Block sequence
+        // Handle Attack + Block sequence for Player 2 blocking
         else if (action.p1Result === 'ATTACK' && action.p2Result === 'BLOCK') {
+            animationTriggered = true;
             this.player.play('slashing');
             this.time.delayedCall(400, () => {
                 this.player2.play('kicking2');
                 this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Block', 'block');
             });
         }
-        // Handle Player 2's MISS + Player 1's COUNTER sequence
-        else if (action.p2Result === 'MISS' && action.p1Result === 'COUNTER') {
+        // Add new condition for Player 1 blocking
+        else if (action.p1Result === 'BLOCK' && action.p2Result === 'ATTACK') {
+            animationTriggered = true;
             this.player2.play('slashing2');
-            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
-
-            this.player2.once('animationcomplete', () => {
-                // Immediately start counter sequence
-                this.showDamageNumber(this.player.x, this.player.y - 50, 'Counter', 'counter');
-                this.player.play('slashing');
-                
-                this.time.delayedCall(400, () => {
-                    this.player2.play('hurt2');
-                    this.showDamageNumber(this.player2.x, this.player2.y - 50, action.p1Damage, 'damage');
-                    
-                    this.player2.once('animationcomplete', () => {
-                        if (isLastAction && this.combatData.winner === 1) {
-                            this.time.delayedCall(400, () => {
-                                this.player2.play('dying2');
-                            });
-                        } else if (!isLastAction) {
-                            this.player2.play('idle2');
-                        }
-                    });
-                });
-
-                this.player.once('animationcomplete', () => {
-                    this.player.play('idle');
-                });
+            this.time.delayedCall(400, () => {
+                this.player.play('kicking');
+                this.showDamageNumber(this.player.x, this.player.y - 50, 'Block', 'block');
             });
         }
         // Handle regular attacks
         else if (action.p1Result === 'ATTACK' && action.p1Damage > 0) {
+            animationTriggered = true;
             this.player.play('slashing');
             this.showDamageNumber(this.player.x, this.player.y - 50, 'Hit', 'miss');  // Back to normal HIT
             this.time.delayedCall(400, () => {
@@ -676,12 +664,19 @@ export default class FightScene extends Phaser.Scene {
             });
         }
         else if (action.p2Result === 'ATTACK' && action.p2Damage > 0) {
+            animationTriggered = true;
             this.player2.play('slashing2');
             this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Hit', 'miss');  // Back to normal HIT
             this.time.delayedCall(400, () => {
                 this.showDamageNumber(this.player.x, this.player.y - 50, action.p2Damage, 'damage');
                 this.player.play('hurt');
             });
+        }
+
+        // If no animation was triggered, show the ??? symbol
+        if (!animationTriggered) {
+            console.warn('Unknown combat sequence:', action);
+            this.showDamageNumber(this.cameras.main.centerX, this.cameras.main.centerY - 50, '???', 'miss');
         }
 
         // Handle animation completion for both players

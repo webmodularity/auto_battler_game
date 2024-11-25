@@ -49,19 +49,23 @@ function decodeCombatLog(results) {
     const winner = bytes[0];
     const condition = bytes[1];
 
-    // Decode remaining combat actions
-    const numActions = Math.floor((bytes.length - 2) / 6);
+    // Decode remaining combat actions (now 8 bytes per action instead of 6)
+    const numActions = Math.floor((bytes.length - 2) / 8);
     const actions = [];
 
     for (let i = 0; i < numActions; i++) {
-        const offset = 2 + (i * 6);
+        const offset = 2 + (i * 8);
+        // Combine high and low bytes for damage values
+        const p1Damage = (bytes[offset + 1] << 8) | bytes[offset + 2];
+        const p2Damage = (bytes[offset + 5] << 8) | bytes[offset + 6];
+        
         actions.push({
             p1Result: bytes[offset],
-            p1Damage: bytes[offset + 1],
-            p1StaminaLost: bytes[offset + 2],
-            p2Result: bytes[offset + 3],
-            p2Damage: bytes[offset + 4],
-            p2StaminaLost: bytes[offset + 5]
+            p1Damage: p1Damage,
+            p1StaminaLost: bytes[offset + 3],
+            p2Result: bytes[offset + 4],
+            p2Damage: p2Damage,
+            p2StaminaLost: bytes[offset + 7]
         });
     }
 

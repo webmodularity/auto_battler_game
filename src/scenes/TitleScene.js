@@ -174,20 +174,6 @@ export default class TitleScene extends Phaser.Scene {
 
         // Start with idle animation
         this.player.play('Idle');
-
-        // Add a button or trigger to start the fight
-        const startButton = this.add.text(400, 300, 'Start Fight', { 
-            fontSize: '32px', 
-            fill: '#fff' 
-        });
-        startButton.setInteractive();
-        
-        startButton.on('pointerdown', () => {
-            // Start the FightScene with combat data
-            this.scene.start('FightScene', { 
-                combatLog: "0x020001160a05000005000001260a01160a05000002000c01000a01160a05000005000001260a" 
-            });
-        });
     }
 
     createAnimations() {
@@ -246,7 +232,7 @@ export default class TitleScene extends Phaser.Scene {
                         this.cameras.main.fade(1000, 0, 0, 0);
                         this.time.delayedCall(1000, () => {
                             this.scene.start('FightScene', {
-                                combatLog: "0x0200000003040000040000000003012c0a050000050000012c0a012c0a050000032c0f00000300000304000004000000000301000a02000c050000012c0a000003040000032c0f000003000003040000050000012c0a"
+                                combatLog: "0x0100000000030400000003000e0f000000030100000a0200000c0200000c0100000a000000030400000004000000000000030000000304000000040000000000000300000003040000000200000c0100000a0100000a0200000c0200000c0100000a0000000304000000050000000100280a01000e0a05000000040000000000000301000e0a050000000200000c0100000a01000e0a05000000040000000000000300000003040000000200000c0100000a0000000304000000040000000000000300000003040000000400000000000003000000030300280f0400000000000003000000030400000004000000000000030000000304000000040000000000000301000e0a050000000200000c0100000a000000030400000003000e0f0000000301000e0a05000000"
                             });
                         });
                     }
