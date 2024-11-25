@@ -49,22 +49,25 @@ function decodeCombatLog(results) {
     const winner = bytes[0];
     const condition = bytes[1];
 
-    // Decode remaining combat actions (now 8 bytes per action instead of 6)
+    // Decode remaining combat actions
     const numActions = Math.floor((bytes.length - 2) / 8);
     const actions = [];
 
     for (let i = 0; i < numActions; i++) {
         const offset = 2 + (i * 8);
-        // Combine high and low bytes for damage values
-        const p1Damage = (bytes[offset + 1] << 8) | bytes[offset + 2];
-        const p2Damage = (bytes[offset + 5] << 8) | bytes[offset + 6];
+        
+        // First cast to uint16 before shifting to prevent overflow
+        const p1DamageHigh = bytes[offset + 1] & 0xFF;  // ensure unsigned 8-bit
+        const p1DamageLow = bytes[offset + 2] & 0xFF;   // ensure unsigned 8-bit
+        const p2DamageHigh = bytes[offset + 5] & 0xFF;  // ensure unsigned 8-bit
+        const p2DamageLow = bytes[offset + 6] & 0xFF;   // ensure unsigned 8-bit
         
         actions.push({
             p1Result: bytes[offset],
-            p1Damage: p1Damage,
+            p1Damage: ((p1DamageHigh << 8) | p1DamageLow) & 0xFFFF,  // ensure unsigned 16-bit
             p1StaminaLost: bytes[offset + 3],
             p2Result: bytes[offset + 4],
-            p2Damage: p2Damage,
+            p2Damage: ((p2DamageHigh << 8) | p2DamageLow) & 0xFFFF,  // ensure unsigned 16-bit
             p2StaminaLost: bytes[offset + 7]
         });
     }
