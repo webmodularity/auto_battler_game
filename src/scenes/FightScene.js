@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { decodeCombatLog } from '../utils/combatDecoder';
 import * as WebFont from 'webfontloader';
+import { createPlayerAnimations } from '../animations/playerAnimations';
 
 export default class FightScene extends Phaser.Scene {
     constructor() {
@@ -87,9 +88,15 @@ export default class FightScene extends Phaser.Scene {
         this.load.image('ground-01', '/assets/backgrounds/forest2/Ground_01.png');
         this.load.image('foreground', '/assets/backgrounds/forest2/Foreground.png');
         
-        // Your existing player load
-        this.load.atlas('player', '/assets/characters/knight1/player.png', '/assets/characters/knight1/player.json');
-        this.load.atlas('player2', '/assets/characters/knight2/player.png', '/assets/characters/knight2/player.json');
+        // Load both players with new animation format
+        this.load.atlas('player', 
+            '/assets/characters/knight1/player.png', 
+            '/assets/characters/knight1/player_updated.json'
+        );
+        this.load.atlas('player2', 
+            '/assets/characters/knight2/player.png', 
+            '/assets/characters/knight2/player_updated.json'
+        );
 
         // Load health/stamina bar assets
         this.load.image('bar-bg', '/assets/ui/load_bar_bg.png');
@@ -218,7 +225,8 @@ export default class FightScene extends Phaser.Scene {
         this.player2.setFlipX(true); // Flip to face player 1
 
         // Create animations for both players
-        this.createAnimations();
+        createPlayerAnimations(this, 'player');      // Player 1
+        createPlayerAnimations(this, 'player2', '2'); // Player 2
 
         // Update the x positions to be more centered
         this.barConfig.p1x = this.cameras.main.centerX - 420;  // Further left
@@ -302,67 +310,10 @@ export default class FightScene extends Phaser.Scene {
         
         // Initialize fight sequence flag
         this.isFightSequencePlaying = false;
-    }
 
-    createAnimations() {
-        const animations = [
-            { key: 'dying', prefix: 'Dying_', frames: 15 },
-            { key: 'hurt', prefix: 'Hurt_', frames: 12 },
-            { key: 'idle', prefix: 'Idle_', frames: 18 },
-            { key: 'kicking', prefix: 'Kicking_', frames: 12 },
-            { key: 'running', prefix: 'Running_', frames: 12 },
-            { key: 'slashing', prefix: 'Slashing_', frames: 12 },
-            { key: 'walking', prefix: 'Walking_', frames: 24 }
-        ];
-
-        // Create animations for both players
-        ['', '2'].forEach(suffix => {
-            animations.forEach(({ key, prefix, frames }) => {
-                this.anims.create({
-                    key: key + suffix,
-                    frames: this.anims.generateFrameNames(suffix ? 'player2' : 'player', {
-                        prefix: prefix,
-                        start: 0,
-                        end: frames - 1,
-                        zeroPad: 3,
-                        suffix: '.png'
-                    }),
-                    frameRate: 24,
-                    repeat: key === 'idle' || key === 'walking' || key === 'running' ? -1 : 0
-                });
-            });
-        });
-
-        // Separate sliding animations with slow frameRate
-        this.anims.create({
-            key: 'sliding',
-            frames: this.anims.generateFrameNames('player', {
-                prefix: 'Sliding_',
-                start: 0,
-                end: 3,
-                zeroPad: 3,
-                suffix: '.png'
-            }),
-            frameRate: 6,
-            repeat: 0
-        });
-
-        this.anims.create({
-            key: 'sliding2',
-            frames: this.anims.generateFrameNames('player2', {
-                prefix: 'Sliding_',
-                start: 0,
-                end: 3,
-                zeroPad: 3,
-                suffix: '.png'
-            }),
-            frameRate: 6,
-            repeat: 0
-        });
-
-        // Start both players in idle animation
-        this.player.play('idle');
-        this.player2.play('idle2');
+        // After creating the player sprites, make sure to start their idle animations
+        this.player.play('idle', true);  // true means ignore if already playing
+        this.player2.play('idle2', true); // for player 2 with suffix
     }
 
     update() {
@@ -372,12 +323,12 @@ export default class FightScene extends Phaser.Scene {
         }
 
         // Dynamic depth adjustment based on who's attacking
-        if (this.player.anims.currentAnim?.key === 'slashing' || 
-            this.player.anims.currentAnim?.key === 'kicking') {
+        if (this.player.anims.currentAnim?.key === 'attacking' ||  // Changed from 'slashing'
+            this.player.anims.currentAnim?.key === 'blocking') {   // Changed from 'kicking'
             this.player.setDepth(6);
             this.player2.setDepth(5);
-        } else if (this.player2.anims.currentAnim?.key === 'slashing2' || 
-                   this.player2.anims.currentAnim?.key === 'kicking2') {
+        } else if (this.player2.anims.currentAnim?.key === 'attacking2' ||  // Changed from 'slashing2'
+                   this.player2.anims.currentAnim?.key === 'blocking2') {   // Changed from 'kicking2'
             this.player2.setDepth(6);
             this.player.setDepth(5);
         } else {
@@ -547,14 +498,14 @@ export default class FightScene extends Phaser.Scene {
         if (action.p1Result === 'MISS' && action.p2Result === 'COUNTER') {
             animationTriggered = true;
             // First: Player 1's missed attack and MISS text
-            this.player.play('slashing');
+            this.player.play('attacking');
             this.showDamageNumber(this.player.x, this.player.y - 50, 'Miss', 'miss');
 
             // Handle Player 1's slash animation completion
             this.player.once('animationcomplete', () => {
                 // Immediately start counter sequence
                 this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Counter', 'counter');
-                this.player2.play('slashing2');
+                this.player2.play('attacking2');
                 
                 // Short delay before damage
                 this.time.delayedCall(400, () => {
@@ -581,28 +532,28 @@ export default class FightScene extends Phaser.Scene {
         // Handle dodge sequences - add MISS for attacker
         else if (action.p2Result === 'DODGE') {
             animationTriggered = true;
-            this.player.play('slashing');
+            this.player.play('attacking');
             this.showDamageNumber(this.player.x, this.player.y - 50, 'Miss', 'miss');
-            this.player2.play('sliding2');
+            this.player2.play('dodging2');
             this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Dodge', 'dodge');
         }
         else if (action.p1Result === 'DODGE') {
             animationTriggered = true;
-            this.player2.play('slashing2');
+            this.player2.play('attacking2');
             this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
-            this.player.play('sliding');
+            this.player.play('dodging');
             this.showDamageNumber(this.player.x, this.player.y - 50, 'Dodge', 'dodge');
         }
         // Handle Player 2's MISS + Player 1's COUNTER sequence that ends the fight
         else if (action.p2Result === 'MISS' && action.p1Result === 'COUNTER' && isLastAction) {
             animationTriggered = true;
-            this.player2.play('slashing2');
+            this.player2.play('attacking2');
             this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
 
             this.player2.once('animationcomplete', () => {
                 // Immediately start counter sequence
                 this.showDamageNumber(this.player.x, this.player.y - 50, 'Counter', 'counter');
-                this.player.play('slashing');
+                this.player.play('attacking');
                 
                 this.time.delayedCall(400, () => {
                     this.player2.play('hurt2');
@@ -618,7 +569,7 @@ export default class FightScene extends Phaser.Scene {
         // Handle regular MISS animations (not part of counter)
         else if (action.p1Result === 'MISS' && action.p2Result !== 'DODGE' && action.p2Result !== 'BLOCK') {
             animationTriggered = true;
-            this.player.play('slashing');
+            this.player.play('attacking');
             this.showDamageNumber(this.player.x, this.player.y - 50, 'Miss', 'miss');
             
             this.player.once('animationcomplete', () => {
@@ -627,7 +578,7 @@ export default class FightScene extends Phaser.Scene {
         }
         else if (action.p2Result === 'MISS' && action.p1Result !== 'DODGE' && action.p1Result !== 'BLOCK') {
             animationTriggered = true;
-            this.player2.play('slashing2');
+            this.player2.play('attacking2');
             this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
             
             this.player2.once('animationcomplete', () => {
@@ -638,25 +589,25 @@ export default class FightScene extends Phaser.Scene {
         // Handle Attack + Block sequence for Player 2 blocking
         else if (action.p1Result === 'ATTACK' && action.p2Result === 'BLOCK') {
             animationTriggered = true;
-            this.player.play('slashing');
+            this.player.play('attacking');
             this.time.delayedCall(400, () => {
-                this.player2.play('kicking2');
+                this.player2.play('blocking2');
                 this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Block', 'block');
             });
         }
         // Add new condition for Player 1 blocking
         else if (action.p1Result === 'BLOCK' && action.p2Result === 'ATTACK') {
             animationTriggered = true;
-            this.player2.play('slashing2');
+            this.player2.play('attacking2');
             this.time.delayedCall(400, () => {
-                this.player.play('kicking');
+                this.player.play('blocking');
                 this.showDamageNumber(this.player.x, this.player.y - 50, 'Block', 'block');
             });
         }
         // Handle regular attacks
         else if (action.p1Result === 'ATTACK' && action.p1Damage > 0) {
             animationTriggered = true;
-            this.player.play('slashing');
+            this.player.play('attacking');
             this.showDamageNumber(this.player.x, this.player.y - 50, 'Hit', 'miss');  // Back to normal HIT
             this.time.delayedCall(400, () => {
                 this.showDamageNumber(this.player2.x, this.player2.y - 50, action.p1Damage, 'damage');
@@ -665,7 +616,7 @@ export default class FightScene extends Phaser.Scene {
         }
         else if (action.p2Result === 'ATTACK' && action.p2Damage > 0) {
             animationTriggered = true;
-            this.player2.play('slashing2');
+            this.player2.play('attacking2');
             this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Hit', 'miss');  // Back to normal HIT
             this.time.delayedCall(400, () => {
                 this.showDamageNumber(this.player.x, this.player.y - 50, action.p2Damage, 'damage');
@@ -725,6 +676,7 @@ export default class FightScene extends Phaser.Scene {
 
     startVictorySequence(winner, playerType) {
         const isPlayer2 = playerType === 'player2';
+        const suffix = isPlayer2 ? '2' : '';
         const originalX = winner.x;
         const moveDistance = 200;
         const walkDuration = 2000;
@@ -788,53 +740,65 @@ export default class FightScene extends Phaser.Scene {
                 }
             });
 
-            // Rest of victory sequence...
-            winner.setFlipX(true);
-            winner.play(isPlayer2 ? 'walking2' : 'walking');
+            // Initial attack and walk
+            // Player 2 should face left (flipped) when attacking first, Player 1 faces right (not flipped)
+            winner.setFlipX(isPlayer2);
+            winner.play('attacking' + suffix);
             
-            this.tweens.add({
-                targets: winner,
-                x: isPlayer2 ? originalX + moveDistance : originalX - moveDistance,
-                duration: walkDuration,
-                ease: 'Linear',
-                onComplete: () => {
-                    // Slash and transition to walk immediately after
-                    winner.play(isPlayer2 ? 'slashing2' : 'slashing');
-                    winner.once('animationcomplete', () => {
-                        winner.setFlipX(false);
-                        winner.play(isPlayer2 ? 'walking2' : 'walking');
-                        
-                        this.tweens.add({
-                            targets: winner,
-                            x: originalX,
-                            duration: walkDuration,
-                            ease: 'Linear',
-                            onComplete: () => {
-                                // Kick and transition to walk immediately after
-                                winner.play(isPlayer2 ? 'kicking2' : 'kicking');
-                                winner.once('animationcomplete', () => {
-                                    winner.setFlipX(true);
-                                    winner.play(isPlayer2 ? 'walking2' : 'walking');
-                                    
-                                    this.tweens.add({
-                                        targets: winner,
-                                        x: finalPosition,
-                                        duration: walkDuration,
-                                        ease: 'Linear',
-                                        onComplete: () => {
-                                            // Slide and transition to idle immediately after
-                                            winner.play(isPlayer2 ? 'sliding2' : 'sliding');
-                                            winner.once('animationcomplete', () => {
+            winner.once('animationcomplete', () => {
+                // First walk: P2 walks right (not flipped), P1 walks left (flipped)
+                winner.setFlipX(!isPlayer2);
+                winner.play('walking' + suffix);
+                
+                this.tweens.add({
+                    targets: winner,
+                    x: isPlayer2 ? originalX + moveDistance : originalX - moveDistance,
+                    duration: walkDuration,
+                    ease: 'Linear',
+                    onComplete: () => {
+                        // Blocking: P2 faces left (flipped), P1 faces right (not flipped)
+                        winner.setFlipX(isPlayer2);
+                        winner.play('blocking' + suffix);
+                        winner.once('animationcomplete', () => {
+                            // Walk back: P2 walks left (flipped), P1 walks right (not flipped)
+                            winner.setFlipX(isPlayer2);
+                            winner.play('walking' + suffix);
+                            
+                            this.tweens.add({
+                                targets: winner,
+                                x: originalX,
+                                duration: walkDuration,
+                                ease: 'Linear',
+                                onComplete: () => {
+                                    // Attack again: P2 faces left (flipped), P1 faces right (not flipped)
+                                    winner.setFlipX(isPlayer2);
+                                    winner.play('attacking' + suffix);
+                                    winner.once('animationcomplete', () => {
+                                        // Final walk: P2 walks right (not flipped), P1 walks left (flipped)
+                                        winner.setFlipX(!isPlayer2);
+                                        winner.play('walking' + suffix);
+                                        
+                                        this.tweens.add({
+                                            targets: winner,
+                                            x: finalPosition,
+                                            duration: walkDuration,
+                                            ease: 'Linear',
+                                            onComplete: () => {
+                                                // Final dodge: P2 faces left (flipped), P1 faces right (not flipped)
                                                 winner.setFlipX(isPlayer2);
-                                                winner.play(isPlayer2 ? 'idle2' : 'idle');
-                                            });
-                                        }
+                                                winner.play('dodging' + suffix);
+                                                winner.once('animationcomplete', () => {
+                                                    // Final idle: maintain same facing direction
+                                                    winner.play('idle' + suffix);
+                                                });
+                                            }
+                                        });
                                     });
-                                });
-                            }
+                                }
+                            });
                         });
-                    });
-                }
+                    }
+                });
             });
         });
     }
@@ -944,4 +908,37 @@ export default class FightScene extends Phaser.Scene {
             this.startFightSequence();
         });
     }
+
+    playVictoryAnimation(player) {
+        const suffix = player === this.player2 ? '2' : '';
+        player.isPlayingOneShot = true;
+
+        const playNextAnimation = (animations) => {
+            if (animations.length === 0) {
+                player.play('idle' + suffix);
+                player.isPlayingOneShot = false;
+                return;
+            }
+
+            const currentAnim = animations[0];
+            const remainingAnims = animations.slice(1);
+
+            // Make sure we append suffix to both the main animation and walking transition
+            const currentAnimKey = currentAnim + suffix;
+            const walkingAnimKey = 'walking' + suffix;
+
+            player.play(currentAnimKey);
+            player.once('animationcomplete', () => {
+                // Use walking animation with correct suffix
+                player.play(walkingAnimKey);
+                player.scene.time.delayedCall(200, () => {
+                    playNextAnimation(remainingAnims);
+                });
+            });
+        };
+
+        // Start the sequence
+        playNextAnimation(['attacking', 'blocking', 'dodging']);
+    }
 }
+
