@@ -12,16 +12,20 @@ export default class TitleScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.json('playerData', 'assets/characters/knight1/player_updated.json');
+        this.load.json('knight3Data', 'assets/characters/knight3/player.json');
         
-        this.load.once('filecomplete-json-playerData', () => {
-            const jsonData = this.cache.json.get('playerData');
-            this.load.atlas(
-                'player',
-                'assets/characters/knight1/player.png',
-                jsonData
-            );
-        });
+        this.load.atlas(
+            'knight3',
+            'assets/characters/knight3/player.png',
+            'assets/characters/knight3/player.json'
+        );
+
+        this.load.image('sky', 'assets/backgrounds/parallax-mountain/sky.png');
+        this.load.image('bg-decor', 'assets/backgrounds/parallax-mountain/bg-decor.png');
+        this.load.image('middle-decor', 'assets/backgrounds/parallax-mountain/middle-decor.png');
+        this.load.image('foreground', 'assets/backgrounds/parallax-mountain/foreground.png');
+        this.load.image('ground-01', 'assets/backgrounds/parallax-mountain/ground-01.png');
+        this.load.image('ground-02', 'assets/backgrounds/parallax-mountain/ground-02.png');
 
         this.load.on('loaderror', (file) => {
             console.error('Error loading file:', file.key);
@@ -29,13 +33,13 @@ export default class TitleScene extends Phaser.Scene {
     }
 
     create() {
-        const jsonData = this.cache.json.get('playerData');
+        const jsonData = this.cache.json.get('knight3Data');
         if (!jsonData) {
             console.error('No JSON data available for animations');
             return;
         }
         
-        createPlayerAnimations(this, 'player');
+        createPlayerAnimations(this, 'knight3');
         
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
@@ -156,11 +160,11 @@ export default class TitleScene extends Phaser.Scene {
             playerRight: this.BACKGROUND_WIDTH - (SPRITE_WIDTH + 25)  // Added extra padding on right
         };
 
-        // Create player starting in center
-        this.player = this.add.sprite(this.BACKGROUND_WIDTH/2, height - 150, 'player')
+        // Create player starting in center with knight3 texture
+        this.player = this.add.sprite(this.BACKGROUND_WIDTH/2, height - 150, 'knight3')
             .setScale(1)
             .setDepth(6);
-
+        
         // Make camera follow the player without physics
         this.cameras.main.startFollow(this.player, true, 0.1, 0.1);  // Smoother following
         this.cameras.main.setBounds(0, 0, this.BACKGROUND_WIDTH, height);
@@ -186,6 +190,7 @@ export default class TitleScene extends Phaser.Scene {
 
     update() {
         const MOVE_SPEED = 2;
+        const DODGE_SPEED = 4;  // Speed for dodge sliding
 
         // Only process movement and new animations if we're not in a one-shot animation
         if (!this.isPlayingOneShot) {
@@ -224,11 +229,48 @@ export default class TitleScene extends Phaser.Scene {
                 this.player.play('attacking', true);
                 this.isPlayingOneShot = true;
             }
-            else if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
-                this.player.play('blocking', true);
+
+            // Check for dodge (down arrow) regardless of running state
+            if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
+                this.player.play('dodging', true);
                 this.isPlayingOneShot = true;
+                
+                // Determine direction based on either current running direction or facing direction
+                let direction;
+                if (this.cursors.left.isDown) {
+                    direction = -1;
+                    this.player.setFlipX(true);
+                } else if (this.cursors.right.isDown) {
+                    direction = 1;
+                    this.player.setFlipX(false);
+                } else {
+                    direction = this.player.flipX ? -1 : 1;
+                }
+                
+                const targetX = this.player.x + (direction * 150); // Slide distance
+                
+                // Calculate bounded target position
+                const boundedTargetX = Phaser.Math.Clamp(
+                    targetX,
+                    this.worldBounds.playerLeft,
+                    this.worldBounds.playerRight
+                );
+                
+                this.tweens.add({
+                    targets: this.player,
+                    x: boundedTargetX,
+                    duration: 500, // Duration of dodge animation
+                    ease: 'Quad.out',
+                    onComplete: () => {
+                        this.isPlayingOneShot = false;
+                        if (!this.cursors.left.isDown && !this.cursors.right.isDown) {
+                            this.player.play('idle', true);
+                        }
+                    }
+                });
             }
-            else {
+            // Only play idle if we're not dodging and not moving
+            else if (!this.cursors.left.isDown && !this.cursors.right.isDown) {
                 // If no movement keys are pressed and we're not in a one-shot animation,
                 // and we're currently running, switch back to idle
                 if (this.player.anims.currentAnim && 

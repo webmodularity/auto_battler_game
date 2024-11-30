@@ -88,14 +88,20 @@ export default class FightScene extends Phaser.Scene {
         this.load.image('ground-01', '/assets/backgrounds/forest2/Ground_01.png');
         this.load.image('foreground', '/assets/backgrounds/forest2/Foreground.png');
         
-        // Load both players with new animation format
-        this.load.atlas('player', 
-            '/assets/characters/knight1/player.png', 
-            '/assets/characters/knight1/player_updated.json'
+        // Load player 1 assets (knight1)
+        this.load.json('knight1Data', 'assets/characters/knight1/player.json');
+        this.load.atlas(
+            'knight1',
+            'assets/characters/knight1/player.png',
+            'assets/characters/knight1/player.json'
         );
-        this.load.atlas('player2', 
-            '/assets/characters/knight2/player.png', 
-            '/assets/characters/knight2/player_updated.json'
+
+        // Load player 2 assets (knight2)
+        this.load.json('knight2Data', 'assets/characters/knight2/player.json');
+        this.load.atlas(
+            'knight2',
+            'assets/characters/knight2/player.png',
+            'assets/characters/knight2/player.json'
         );
 
         // Load health/stamina bar assets
@@ -108,6 +114,20 @@ export default class FightScene extends Phaser.Scene {
     }
 
     create() {
+        // Create animations for both players without clearing
+        createPlayerAnimations(this, 'knight1');
+        createPlayerAnimations(this, 'knight2');
+
+        // Create player sprites
+        this.player = this.add.sprite(125, 425, 'knight1')
+            .setFlipX(false);  // Ensure player 1 faces right
+        this.player2 = this.add.sprite(835, 425, 'knight2')
+            .setFlipX(true);   // Ensure player 2 faces left
+
+        // Start with idle animations
+        this.player.play('idle');
+        this.player2.play('idle2');
+
         this.barConfig = {
             ...this.barConfig,
             width: 400,
@@ -213,21 +233,6 @@ export default class FightScene extends Phaser.Scene {
                 .setAlpha(layer.alpha);
         });
 
-        // Create player 1 (left side)
-        this.player = this.add.sprite(125, 425, 'player');
-        this.player.setScale(1);
-        this.player.setDepth(5);
-
-        // Create player 2 (right side)
-        this.player2 = this.add.sprite(835, 425, 'player2');
-        this.player2.setScale(1);
-        this.player2.setDepth(5);
-        this.player2.setFlipX(true); // Flip to face player 1
-
-        // Create animations for both players
-        createPlayerAnimations(this, 'player');      // Player 1
-        createPlayerAnimations(this, 'player2', '2'); // Player 2
-
         // Update the x positions to be more centered
         this.barConfig.p1x = this.cameras.main.centerX - 420;  // Further left
         this.barConfig.p2x = this.cameras.main.centerX + 20;   // Keep right position
@@ -310,10 +315,6 @@ export default class FightScene extends Phaser.Scene {
         
         // Initialize fight sequence flag
         this.isFightSequencePlaying = false;
-
-        // After creating the player sprites, make sure to start their idle animations
-        this.player.play('idle', true);  // true means ignore if already playing
-        this.player2.play('idle2', true); // for player 2 with suffix
     }
 
     update() {

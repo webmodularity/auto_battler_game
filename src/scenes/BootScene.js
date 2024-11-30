@@ -55,8 +55,21 @@ export default class BootScene extends Phaser.Scene {
         this.load.image('ground-01', '/assets/backgrounds/forest2/Ground_01.png');
         this.load.image('foreground', '/assets/backgrounds/forest2/Foreground.png');
         
-        // Characters
-        this.load.atlas('player', '/assets/characters/knight1/player.png', '/assets/characters/knight1/player.json');
-        this.load.atlas('player2', '/assets/characters/knight2/player.png', '/assets/characters/knight2/player.json');
+        // Characters with correct JSON files
+        this.load.atlas(
+            'knight1', 
+            '/assets/characters/knight1/player.png', 
+            '/assets/characters/knight1/player.json'
+        );
+        this.load.atlas(
+            'knight2', 
+            '/assets/characters/knight2/player.png', 
+            '/assets/characters/knight2/player.json'
+        );
+        this.load.atlas(
+            'knight3', 
+            '/assets/characters/knight3/player.png', 
+            '/assets/characters/knight3/player.json'
+        );
     }
 } 

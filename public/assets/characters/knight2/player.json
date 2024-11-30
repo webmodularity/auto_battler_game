@@ -1,6 +1,17 @@
 {
 	"textures": [
 		{
+			"fps": {
+				"idle": 30,
+				"walking": 30,
+				"running": 30,
+				"attacking": 30,
+				"blocking": 30,
+				"dying": 30,
+				"hurt": 30,
+				"dodging": 12,
+				"taunting": 30
+			  },
 			"image": "player.png",
 			"format": "RGBA8888",
 			"size": {
