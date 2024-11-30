@@ -10,19 +10,21 @@ const MAX_ANIMATION_DURATION = 3;
 const ANIMATION_MAPPINGS = {
     'kicking': 'blocking',
     'slashing': 'attacking',
-    'sliding': 'dodging'
+    'sliding': 'dodging',
+    'throwing': 'taunting'
 };
 
 // Default FPS values and validation rules
 const ANIMATION_RULES = {
-    idle: { fps: 24, maxDuration: 3 },
-    walking: { fps: 24, maxDuration: 3 },
-    running: { fps: 24, maxDuration: 3 },
-    attacking: { fps: 24, maxDuration: 2 },
-    blocking: { fps: 24, maxDuration: 2 },
-    dying: { fps: 24, maxDuration: 3 },
-    hurt: { fps: 24, maxDuration: 2 },
-    dodging: { fps: 24, maxDuration: 2 }
+    idle: { fps: 30, maxDuration: 3 },
+    walking: { fps: 30, maxDuration: 3 },
+    running: { fps: 30, maxDuration: 3 },
+    attacking: { fps: 30, maxDuration: 2 },
+    blocking: { fps: 30, maxDuration: 2 },
+    dying: { fps: 30, maxDuration: 3 },
+    hurt: { fps: 30, maxDuration: 2 },
+    dodging: { fps: 30, maxDuration: 2 },
+    taunting: { fps: 30, maxDuration: 2 }
 };
 
 function validateAnimation(animName, frameCount, fps) {
@@ -90,7 +92,8 @@ function processJson(inputPath, outputPath) {
                     blocking: 24,
                     dying: 24,
                     hurt: 24,
-                    dodging: 24
+                    dodging: 24,
+                    taunting: 24
                 },
                 frames: []
             }]

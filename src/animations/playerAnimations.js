@@ -7,7 +7,8 @@ export const VALID_ANIMATIONS = {
     blocking: { repeat: false },   // was 'kicking'
     dying: { repeat: false },
     hurt: { repeat: false },
-    dodging: { repeat: false }     // was 'sliding'
+    dodging: { repeat: false },    // was 'sliding'
+    taunting: { repeat: false }    // was 'throwing'
 };
 
 // Create animations for a sprite
@@ -32,6 +33,7 @@ export function createPlayerAnimations(scene, textureKey, suffix = '') {
         if (animName === 'slashing') animName = 'attacking';
         if (animName === 'kicking') animName = 'blocking';
         if (animName === 'sliding') animName = 'dodging';
+        if (animName === 'throwing') animName = 'taunting';
         
         if (!VALID_ANIMATIONS[animName]) return;
 

@@ -158,7 +158,7 @@ export default class TitleScene extends Phaser.Scene {
 
         // Create player starting in center
         this.player = this.add.sprite(this.BACKGROUND_WIDTH/2, height - 150, 'player')
-            .setScale(1.5)
+            .setScale(1)
             .setDepth(6);
 
         // Make camera follow the player without physics

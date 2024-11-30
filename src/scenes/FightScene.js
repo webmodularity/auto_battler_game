@@ -215,12 +215,12 @@ export default class FightScene extends Phaser.Scene {
 
         // Create player 1 (left side)
         this.player = this.add.sprite(125, 425, 'player');
-        this.player.setScale(1.5);
+        this.player.setScale(1);
         this.player.setDepth(5);
 
         // Create player 2 (right side)
         this.player2 = this.add.sprite(835, 425, 'player2');
-        this.player2.setScale(1.5);
+        this.player2.setScale(1);
         this.player2.setDepth(5);
         this.player2.setFlipX(true); // Flip to face player 1
 
@@ -678,15 +678,73 @@ export default class FightScene extends Phaser.Scene {
         const isPlayer2 = playerType === 'player2';
         const suffix = isPlayer2 ? '2' : '';
         const originalX = winner.x;
-        const moveDistance = 200;
-        const walkDuration = 2000;
-        const finalPosition = isPlayer2 ? originalX + 200 : originalX - 200;
         
-        this.time.delayedCall(1500, () => {
-            // First add Victory text
+        // Configure distances and timings
+        const walkDistance = 200;  // Reduced from 300 to stay further from edge
+        const walkDuration = 2000;
+        const finalPosition = isPlayer2 ? originalX + walkDistance : originalX - walkDistance;
+        const halfwayPoint = isPlayer2 ? originalX + (walkDistance/2) : originalX - (walkDistance/2);
+        
+        // Start sequence after combat ends (reduced initial delay)
+        this.time.delayedCall(1000, () => {
+            // Turn and walk away
+            winner.setFlipX(!isPlayer2);
+            winner.play('walking' + suffix);
+            
+            // Walk to halfway point, dodge, then continue walking
+            this.tweens.add({
+                targets: winner,
+                x: halfwayPoint,
+                duration: walkDuration/2,
+                ease: 'Linear',
+                onComplete: () => {
+                    // Perform dodge animation
+                    winner.play('dodging' + suffix);
+                    
+                    winner.once('animationcomplete', () => {
+                        // Continue walking to final position
+                        winner.play('walking' + suffix);
+                        
+                        this.tweens.add({
+                            targets: winner,
+                            x: finalPosition,
+                            duration: walkDuration/2,
+                            ease: 'Linear',
+                            onComplete: () => {
+                                // Stop and prepare for taunts
+                                winner.play('idle' + suffix);
+                                
+                                // Perform three taunts with pauses between
+                                const performTaunt = (tauntNumber) => {
+                                    if (tauntNumber >= 3) {
+                                        // After all taunts, return to idle
+                                        winner.play('idle' + suffix);
+                                        return;
+                                    }
+                                    
+                                    this.time.delayedCall(800, () => {
+                                        winner.play('taunting' + suffix);
+                                        
+                                        // Wait for taunt animation to complete
+                                        winner.once('animationcomplete', () => {
+                                            winner.play('idle' + suffix);
+                                            performTaunt(tauntNumber + 1);
+                                        });
+                                    });
+                                };
+                                
+                                // Start the taunt sequence
+                                performTaunt(0);
+                            }
+                        });
+                    });
+                }
+            });
+
+            // Add Victory text with same styling as before
             const victoryText = this.add.text(
                 this.cameras.main.centerX,
-                this.cameras.main.centerY - 40,  // Moved up a bit to make room for player text
+                this.cameras.main.centerY - 40,
                 'Victory',
                 {
                     fontFamily: 'Bokor',
@@ -701,21 +759,21 @@ export default class FightScene extends Phaser.Scene {
             .setDepth(100)
             .setAlpha(0);
 
-            // Fade in Victory text first
+            // Fade in Victory text
             this.tweens.add({
                 targets: victoryText,
                 alpha: 1,
                 duration: 1000,
                 ease: 'Power1',
                 onComplete: () => {
-                    // After Victory text is in, add Player text
+                    // Add Player text below
                     const playerText = this.add.text(
                         this.cameras.main.centerX,
-                        this.cameras.main.centerY + 40,  // Below Victory text
+                        this.cameras.main.centerY + 40,
                         `Player ${isPlayer2 ? '2' : '1'}`,
                         {
                             fontFamily: 'Bokor',
-                            fontSize: '60px',  // Half size of Victory text
+                            fontSize: '60px',
                             color: '#ff3333',
                             stroke: '#000000',
                             strokeThickness: 6,
@@ -731,74 +789,13 @@ export default class FightScene extends Phaser.Scene {
                         targets: playerText,
                         alpha: 1,
                         x: {
-                            from: this.cameras.main.centerX - 100,  // Start left of center
+                            from: this.cameras.main.centerX - 100,
                             to: this.cameras.main.centerX
                         },
                         duration: 800,
                         ease: 'Power2'
                     });
                 }
-            });
-
-            // Initial attack and walk
-            // Player 2 should face left (flipped) when attacking first, Player 1 faces right (not flipped)
-            winner.setFlipX(isPlayer2);
-            winner.play('attacking' + suffix);
-            
-            winner.once('animationcomplete', () => {
-                // First walk: P2 walks right (not flipped), P1 walks left (flipped)
-                winner.setFlipX(!isPlayer2);
-                winner.play('walking' + suffix);
-                
-                this.tweens.add({
-                    targets: winner,
-                    x: isPlayer2 ? originalX + moveDistance : originalX - moveDistance,
-                    duration: walkDuration,
-                    ease: 'Linear',
-                    onComplete: () => {
-                        // Blocking: P2 faces left (flipped), P1 faces right (not flipped)
-                        winner.setFlipX(isPlayer2);
-                        winner.play('blocking' + suffix);
-                        winner.once('animationcomplete', () => {
-                            // Walk back: P2 walks left (flipped), P1 walks right (not flipped)
-                            winner.setFlipX(isPlayer2);
-                            winner.play('walking' + suffix);
-                            
-                            this.tweens.add({
-                                targets: winner,
-                                x: originalX,
-                                duration: walkDuration,
-                                ease: 'Linear',
-                                onComplete: () => {
-                                    // Attack again: P2 faces left (flipped), P1 faces right (not flipped)
-                                    winner.setFlipX(isPlayer2);
-                                    winner.play('attacking' + suffix);
-                                    winner.once('animationcomplete', () => {
-                                        // Final walk: P2 walks right (not flipped), P1 walks left (flipped)
-                                        winner.setFlipX(!isPlayer2);
-                                        winner.play('walking' + suffix);
-                                        
-                                        this.tweens.add({
-                                            targets: winner,
-                                            x: finalPosition,
-                                            duration: walkDuration,
-                                            ease: 'Linear',
-                                            onComplete: () => {
-                                                // Final dodge: P2 faces left (flipped), P1 faces right (not flipped)
-                                                winner.setFlipX(isPlayer2);
-                                                winner.play('dodging' + suffix);
-                                                winner.once('animationcomplete', () => {
-                                                    // Final idle: maintain same facing direction
-                                                    winner.play('idle' + suffix);
-                                                });
-                                            }
-                                        });
-                                    });
-                                }
-                            });
-                        });
-                    }
-                });
             });
         });
     }
