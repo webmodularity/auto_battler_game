@@ -680,123 +680,72 @@ export default class FightScene extends Phaser.Scene {
         const suffix = isPlayer2 ? '2' : '';
         const originalX = winner.x;
         
-        // Configure distances and timings
-        const walkDistance = 200;  // Reduced from 300 to stay further from edge
-        const walkDuration = 2000;
+        const walkDistance = 300;
+        const walkDuration = 3000;
         const finalPosition = isPlayer2 ? originalX + walkDistance : originalX - walkDistance;
         const halfwayPoint = isPlayer2 ? originalX + (walkDistance/2) : originalX - (walkDistance/2);
         
-        // Start sequence after combat ends (reduced initial delay)
         this.time.delayedCall(1000, () => {
-            // Turn and walk away
             winner.setFlipX(!isPlayer2);
-            winner.play('walking' + suffix);
             
-            // Walk to halfway point, dodge, then continue walking
-            this.tweens.add({
-                targets: winner,
-                x: halfwayPoint,
-                duration: walkDuration/2,
-                ease: 'Linear',
-                onComplete: () => {
-                    // Perform dodge animation
-                    winner.play('dodging' + suffix);
-                    
-                    winner.once('animationcomplete', () => {
-                        // Continue walking to final position
-                        winner.play('walking' + suffix);
-                        
-                        this.tweens.add({
-                            targets: winner,
-                            x: finalPosition,
-                            duration: walkDuration/2,
-                            ease: 'Linear',
-                            onComplete: () => {
-                                // Stop and prepare for taunts
-                                winner.play('idle' + suffix);
-                                
-                                // Perform three taunts with pauses between
-                                const performTaunt = (tauntNumber) => {
-                                    if (tauntNumber >= 3) {
-                                        // After all taunts, return to idle
-                                        winner.play('idle' + suffix);
-                                        return;
-                                    }
-                                    
-                                    this.time.delayedCall(800, () => {
-                                        winner.play('taunting' + suffix);
-                                        
-                                        // Wait for taunt animation to complete
-                                        winner.once('animationcomplete', () => {
-                                            winner.play('idle' + suffix);
-                                            performTaunt(tauntNumber + 1);
-                                        });
-                                    });
-                                };
-                                
-                                // Start the taunt sequence
-                                performTaunt(0);
-                            }
-                        });
-                    });
-                }
+            // Use the existing walking animation configuration
+            winner.play({
+                key: 'walking' + suffix,
+                // The frameRate and repeat are already configured in createPlayerAnimations
+                // so we don't need to specify them here
             });
-
-            // Add Victory text with same styling as before
-            const victoryText = this.add.text(
-                this.cameras.main.centerX,
-                this.cameras.main.centerY - 40,
-                'Victory',
+            
+            const sequence = [
                 {
-                    fontFamily: 'Bokor',
-                    fontSize: '120px',
-                    color: '#ff3333',
-                    stroke: '#000000',
-                    strokeThickness: 8,
-                    align: 'center'
+                    targets: winner,
+                    x: halfwayPoint,
+                    duration: walkDuration/2,
+                    ease: 'Linear'
+                },
+                {
+                    targets: winner,
+                    x: halfwayPoint,
+                    duration: 800,
+                    onStart: () => {
+                        winner.play('dodging' + suffix);
+                    },
+                    onComplete: () => {
+                        // Resume walking animation using existing configuration
+                        winner.play('walking' + suffix);
+                    }
+                },
+                {
+                    targets: winner,
+                    x: finalPosition,
+                    duration: walkDuration/2,
+                    ease: 'Linear',
+                    onComplete: () => {
+                        winner.play('idle' + suffix);
+                        this.time.delayedCall(500, () => {
+                            this.playTauntSequence(winner, suffix);
+                        });
+                    }
                 }
-            )
-            .setOrigin(0.5)
-            .setDepth(100)
-            .setAlpha(0);
+            ];
 
-            // Fade in Victory text
-            this.tweens.add({
-                targets: victoryText,
-                alpha: 1,
-                duration: 1000,
-                ease: 'Power1',
-                onComplete: () => {
-                    // Add Player text below
-                    const playerText = this.add.text(
-                        this.cameras.main.centerX,
-                        this.cameras.main.centerY + 40,
-                        `Player ${isPlayer2 ? '2' : '1'}`,
-                        {
-                            fontFamily: 'Bokor',
-                            fontSize: '60px',
-                            color: '#ff3333',
-                            stroke: '#000000',
-                            strokeThickness: 6,
-                            align: 'center'
-                        }
-                    )
-                    .setOrigin(0.5)
-                    .setDepth(100)
-                    .setAlpha(0);
+            this.tweens.chain({
+                tweens: sequence
+            });
+        });
+    }
 
-                    // Slide in and fade in player text
-                    this.tweens.add({
-                        targets: playerText,
-                        alpha: 1,
-                        x: {
-                            from: this.cameras.main.centerX - 100,
-                            to: this.cameras.main.centerX
-                        },
-                        duration: 800,
-                        ease: 'Power2'
-                    });
-                }
+    // Simplified taunt sequence
+    playTauntSequence(winner, suffix, count = 0) {
+        if (count >= 3) {
+            winner.play('idle' + suffix);
+            return;
+        }
+
+        winner.play('taunting' + suffix);
+        winner.once('animationcomplete', () => {
+            winner.play('idle' + suffix);
+            this.time.delayedCall(800, () => {
+                this.playTauntSequence(winner, suffix, count + 1);
             });
         });
     }
