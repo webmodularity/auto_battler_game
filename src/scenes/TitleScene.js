@@ -12,14 +12,6 @@ export default class TitleScene extends Phaser.Scene {
     }
 
     preload() {
-        this.load.json('knight3Data', 'assets/characters/knight3/player.json');
-        
-        this.load.atlas(
-            'knight3',
-            'assets/characters/knight3/player.png',
-            'assets/characters/knight3/player.json'
-        );
-
         this.load.image('sky', 'assets/backgrounds/parallax-mountain/sky.png');
         this.load.image('bg-decor', 'assets/backgrounds/parallax-mountain/bg-decor.png');
         this.load.image('middle-decor', 'assets/backgrounds/parallax-mountain/middle-decor.png');
@@ -33,13 +25,17 @@ export default class TitleScene extends Phaser.Scene {
     }
 
     create() {
-        const jsonData = this.cache.json.get('knight3Data');
+        const PLAYER_ID = '1';
+        const playerKey = `player${PLAYER_ID}`;
+        
+        // Get the JSON data from the loaded atlas instead of trying to load it separately
+        const jsonData = this.textures.get(playerKey).get('__BASE').customData;
         if (!jsonData) {
             console.error('No JSON data available for animations');
             return;
         }
         
-        createPlayerAnimations(this, 'knight3');
+        createPlayerAnimations(this, playerKey);
         
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
@@ -161,7 +157,7 @@ export default class TitleScene extends Phaser.Scene {
         };
 
         // Create player starting in center with knight3 texture
-        this.player = this.add.sprite(this.BACKGROUND_WIDTH/2, height - 150, 'knight3')
+        this.player = this.add.sprite(this.BACKGROUND_WIDTH/2, height - 150, playerKey)
             .setScale(1)
             .setDepth(6);
         

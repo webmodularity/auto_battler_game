@@ -46,7 +46,7 @@ export default class BootScene extends Phaser.Scene {
             this.scene.start('TitleScene');
         });
 
-        // Move all asset loading from MainScene to here
+        // Load assets
         // Background layers
         this.load.image('sky', '/assets/backgrounds/forest2/Sky.png');
         this.load.image('bg-decor', '/assets/backgrounds/forest2/BG.png');
@@ -55,21 +55,38 @@ export default class BootScene extends Phaser.Scene {
         this.load.image('ground-01', '/assets/backgrounds/forest2/Ground_01.png');
         this.load.image('foreground', '/assets/backgrounds/forest2/Foreground.png');
         
-        // Characters with correct JSON files
-        this.load.atlas(
-            'knight1', 
-            '/assets/characters/knight1/player.png', 
-            '/assets/characters/knight1/player.json'
-        );
-        this.load.atlas(
-            'knight2', 
-            '/assets/characters/knight2/player.png', 
-            '/assets/characters/knight2/player.json'
-        );
-        this.load.atlas(
-            'knight3', 
-            '/assets/characters/knight3/player.png', 
-            '/assets/characters/knight3/player.json'
-        );
+        // Load player atlas
+        const PLAYER_ID = '1';
+        const IPFS_BASE_URL = 'https://ipfs.io/ipfs';
+        const JSON_HASH = 'QmZdXdKfHi9MqbdhXMoujfmyGy8EMZ1sVkHD7e1ynLSqJU';
+        const SPRITE_HASH = 'QmNfDodYWAN9i6CtH2WRayAKmszidDQQYkH9d3Upk6kXqK';
+        
+        // Load JSON first
+        this.load.json(`player${PLAYER_ID}-data`, `${IPFS_BASE_URL}/${JSON_HASH}`);
+        
+        // Wait for JSON to load before loading atlas
+        this.load.once('filecomplete-json-player1-data', () => {
+            // Use the loaded JSON data for the atlas
+            const jsonData = this.cache.json.get(`player${PLAYER_ID}-data`);
+            
+            this.load.atlas(
+                `player${PLAYER_ID}`, 
+                `${IPFS_BASE_URL}/${SPRITE_HASH}`,
+                jsonData  // Use the already loaded JSON data
+            );
+        });
+    }
+
+    create() {
+        // Attach the JSON data to the texture
+        const PLAYER_ID = '1';
+        const jsonData = this.cache.json.get(`player${PLAYER_ID}-data`);
+        const texture = this.textures.get(`player${PLAYER_ID}`);
+        
+        if (texture && jsonData) {
+            texture.get('__BASE').customData = jsonData;
+        }
+        
+        this.scene.start('TitleScene');
     }
 } 
