@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import { decodeCombatLog } from '../utils/combatDecoder';
 import * as WebFont from 'webfontloader';
 import { createPlayerAnimations } from '../animations/playerAnimations';
+import { loadCharacterData } from '../utils/nftLoader';
 
 export default class FightScene extends Phaser.Scene {
     constructor() {
@@ -65,271 +66,309 @@ export default class FightScene extends Phaser.Scene {
     }
 
     init(data) {
-        if (data.combatLog) {
-            try {
-                this.combatData = decodeCombatLog(data.combatLog);
-            } catch (error) {
-                console.error('Error decoding combat log:', error);
-            }
-        }
+        console.log('FightScene init with data:', {
+            player1Id: data.player1Id,
+            player2Id: data.player2Id,
+            player1DataExists: !!data.player1Data,
+            player2DataExists: !!data.player2Data,
+            player1Frames: data.player1Data?.jsonData?.frames?.length,
+            player2Frames: data.player2Data?.jsonData?.frames?.length
+        });
+        
+        this.player1Id = data.player1Id;
+        this.player2Id = data.player2Id;
+        this.player1Data = data.player1Data;
+        this.player2Data = data.player2Data;
     }
 
-    preload() {
-        // Load assets silently without debug messages
-        this.load.on('filecomplete', () => {
-            // Removed debug logging
-        });
-
-        // Load background layers
+    async preload() {
+        // Background and UI loading first
         this.load.image('sky', '/assets/backgrounds/forest2/Sky.png');
         this.load.image('bg-decor', '/assets/backgrounds/forest2/BG.png');
         this.load.image('middle-decor', '/assets/backgrounds/forest2/Middle.png');
         this.load.image('ground-02', '/assets/backgrounds/forest2/Ground_02.png');
         this.load.image('ground-01', '/assets/backgrounds/forest2/Ground_01.png');
         this.load.image('foreground', '/assets/backgrounds/forest2/Foreground.png');
-        
-        // Load player 1 assets (knight1)
-        this.load.json('knight1Data', 'assets/characters/knight1/player.json');
-        this.load.atlas(
-            'knight1',
-            'assets/characters/knight1/player.png',
-            'assets/characters/knight1/player.json'
-        );
 
-        // Load player 2 assets (knight2)
-        this.load.json('knight2Data', 'assets/characters/knight2/player.json');
-        this.load.atlas(
-            'knight2',
-            'assets/characters/knight2/player.png',
-            'assets/characters/knight2/player.json'
-        );
-
-        // Load health/stamina bar assets
         this.load.image('bar-bg', '/assets/ui/load_bar_bg.png');
         this.load.image('bar-fill-1', '/assets/ui/load_bar_1.png');
         this.load.image('bar-fill-2', '/assets/ui/load_bar_2.png');
         this.load.image('bar-fill-1-right', '/assets/ui/load_bar_1_right.png');
         this.load.image('bar-fill-2-right', '/assets/ui/load_bar_2_right.png');
         this.load.image('bar-dark', '/assets/ui/dark.png');
+
+        // Debug the data we have
+        console.log('Preloading with data:', {
+            player1Url: this.player1Data?.spritesheetUrl,
+            player2Url: this.player2Data?.spritesheetUrl,
+            player1JsonExists: !!this.player1Data?.jsonData,
+            player2JsonExists: !!this.player2Data?.jsonData
+        });
+
+        // Load the spritesheets with explicit error handling
+        if (this.player1Data?.spritesheetUrl && this.player1Data?.jsonData) {
+            console.log('Loading player1 atlas with:', {
+                key: 'player1',
+                url: this.player1Data.spritesheetUrl,
+                jsonFrames: Object.keys(this.player1Data.jsonData.frames || {}).length
+            });
+            this.load.atlas('player1', this.player1Data.spritesheetUrl, this.player1Data.jsonData);
+        }
+
+        if (this.player2Data?.spritesheetUrl && this.player2Data?.jsonData) {
+            console.log('Loading player2 atlas with:', {
+                key: 'player2',
+                url: this.player2Data.spritesheetUrl,
+                jsonFrames: Object.keys(this.player2Data.jsonData.frames || {}).length
+            });
+            this.load.atlas('player2', this.player2Data.spritesheetUrl, this.player2Data.jsonData);
+        }
+
+        // Add error handler
+        this.load.on('loaderror', (fileObj) => {
+            console.error('Error loading file:', fileObj.key, fileObj.url);
+            console.error('Error details:', fileObj.data);
+        });
+
+        // Add load complete handler
+        this.load.on('complete', () => {
+            const textures = this.textures.list;
+            console.log('Loaded textures:', {
+                player1Exists: !!textures.player1,
+                player2Exists: !!textures.player2,
+                player1Frames: textures.player1?.frameTotal,
+                player2Frames: textures.player2?.frameTotal
+            });
+        });
     }
 
-    create() {
-        // Create animations for both players without clearing
-        createPlayerAnimations(this, 'knight1');
-        createPlayerAnimations(this, 'knight2');
+    async create() {
+        try {
+            // Create animations for both players without clearing
+            createPlayerAnimations(this, 'player1');  // Changed from knight1
+            createPlayerAnimations(this, 'player2', true);  // Changed from knight2, added isPlayer2 flag
 
-        // Create player sprites
-        this.player = this.add.sprite(125, 425, 'knight1')
-            .setFlipX(false);  // Ensure player 1 faces right
-        this.player2 = this.add.sprite(835, 425, 'knight2')
-            .setFlipX(true);   // Ensure player 2 faces left
+            // Create player sprites with updated keys
+            this.player = this.add.sprite(125, 425, 'player1')  // Changed from knight1
+                .setFlipX(false);
+            this.player2 = this.add.sprite(835, 425, 'player2')  // Changed from knight2
+                .setFlipX(true);
 
-        // Start with idle animations
-        this.player.play('idle');
-        this.player2.play('idle2');
+            // Start with idle animations
+            this.player.play('idle');
+            this.player2.play('idle2');
 
-        this.barConfig = {
-            ...this.barConfig,
-            width: 400,
-            staminaWidth: 300,
-            height: 26,
-            staminaHeight: 15,
-            fillHeight: 27,
-            padding: 2,
-            y: 50,
-            labelPadding: 30,
-            staminaGap: 8,
-            p1x: this.cameras.main.centerX - 420,
-            p2x: this.cameras.main.centerX + 20,
-            nudgeFactor: 3
-        };
+            this.barConfig = {
+                ...this.barConfig,
+                width: 400,
+                staminaWidth: 300,
+                height: 26,
+                staminaHeight: 15,
+                fillHeight: 27,
+                padding: 2,
+                y: 50,
+                labelPadding: 30,
+                staminaGap: 8,
+                p1x: this.cameras.main.centerX - 420,
+                p2x: this.cameras.main.centerX + 20,
+                nudgeFactor: 3
+            };
 
-        // Player 1 bars (right-aligned stamina, nudged left)
-        this.p1Bars = {
-            healthBg: this.add.image(this.barConfig.p1x, this.barConfig.y, 'bar-bg')
-                .setOrigin(0, 0)
-                .setDepth(98)
-                .setDisplaySize(this.barConfig.width, this.barConfig.height),
-            healthFill: this.add.image(this.barConfig.p1x, this.barConfig.y, 'bar-fill-2')
-                .setOrigin(0, 0)
-                .setDepth(100)
-                .setDisplaySize(this.barConfig.width, this.barConfig.height),
-            staminaBg: this.add.image(
-                (this.barConfig.p1x + this.barConfig.width - this.barConfig.staminaWidth) - this.barConfig.nudgeFactor,
-                this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
-                'bar-bg'
-            )
-                .setOrigin(0, 0)
-                .setDepth(98)
-                .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
-            staminaFill: this.add.image(
-                (this.barConfig.p1x + this.barConfig.width - this.barConfig.staminaWidth) - this.barConfig.nudgeFactor,
-                this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
-                'bar-fill-1'
-            )
-                .setOrigin(0, 0)
-                .setDepth(100)
-                .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
-            health: 100,
-            stamina: 100
-        };
-
-        // Player 2 bars (left-aligned stamina, nudged right)
-        this.p2Bars = {
-            healthBg: this.add.image(this.barConfig.p2x, this.barConfig.y, 'bar-bg')
-                .setOrigin(0, 0)
-                .setDepth(98)
-                .setDisplaySize(this.barConfig.width, this.barConfig.height),
-            healthFill: this.add.image(this.barConfig.p2x, this.barConfig.y, 'bar-fill-2-right')
-                .setOrigin(0, 0)
-                .setDepth(100)
-                .setDisplaySize(this.barConfig.width, this.barConfig.height),
-            staminaBg: this.add.image(
-                this.barConfig.p2x + this.barConfig.nudgeFactor,
-                this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
-                'bar-bg'
-            )
-                .setOrigin(0, 0)
-                .setDepth(98)
-                .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
-            staminaFill: this.add.image(
-                this.barConfig.p2x + this.barConfig.nudgeFactor,
-                this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
-                'bar-fill-1-right'
-            )
-                .setOrigin(0, 0)
-                .setDepth(100)
-                .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
-            health: 100,
-            stamina: 100
-        };
-
-        // Get the actual texture dimensions
-        const fillTexture = this.textures.get('bar-fill-1');
-        this.barConfig.textureWidth = fillTexture.source[0].width;
-        this.barConfig.textureHeight = fillTexture.source[0].height;
-
-        // Initial setup of crop rectangles using texture dimensions
-        [this.p1Bars, this.p2Bars].forEach(bars => {
-            bars.healthFill.setCrop(0, 0, this.barConfig.textureWidth, this.barConfig.textureHeight);
-            bars.staminaFill.setCrop(0, 0, this.barConfig.textureWidth, this.barConfig.textureHeight);
-        });
-
-        // Add all layers in order with corrected depth and alpha
-        const layers = [
-            { key: 'sky', depth: 0, alpha: 0.75 },
-            { key: 'bg-decor', depth: 1, alpha: 0.75 },
-            { key: 'middle-decor', depth: 2, alpha: 0.8 },
-            { key: 'foreground', depth: 3, alpha: 0.65 },
-            { key: 'ground-01', depth: 4, alpha: 1 }  // Keep ground fully opaque
-        ];
-
-        // Add all layers with basic positioning and alpha
-        layers.forEach(layer => {
-            this.add.image(0, 0, layer.key)
-                .setOrigin(0, 0)
-                .setScale(0.5)
-                .setDepth(layer.depth)
-                .setAlpha(layer.alpha);
-        });
-
-        // Update the x positions to be more centered
-        this.barConfig.p1x = this.cameras.main.centerX - 420;  // Further left
-        this.barConfig.p2x = this.cameras.main.centerX + 20;   // Keep right position
-
-        // Add keyboard input
-        this.fKey = this.input.keyboard.addKey('F');
-        
-        // Flag to prevent multiple triggers
-        this.isFightSequencePlaying = false;
-
-        // Store initial positions
-        this.playerStartX = this.player.x;
-        this.player2StartX = this.player2.x;
-
-        // Define centerX for use in animations
-        this.centerX = this.cameras.main.centerX;
-
-        // Auto-start the fight sequence after a short delay
-        this.time.delayedCall(1000, () => {
-            this.startFightSequence();
-        });
-
-        // Configure damage number style
-        this.damageNumberConfig = {
-            fontSize: {
-                damage: '64px',
-                text: '52px'
-            },
-            fontFamily: 'Bokor',
-            duration: 1500,
-            rise: 200,
-            colors: {
-                damage: '#ff0000',
-                block: '#6666ff',
-                dodge: '#66ffff',
-                miss: '#ffffff',
-                counter: '#66ff66'
-            }
-        };
-
-        // Load fonts before creating text
-        WebFont.load({
-            google: {
-                families: ['Bokor']
-            },
-            active: () => {
-                // Player labels - moved up 10px
-                this.add.text(this.barConfig.p1x + this.barConfig.width - 5, 
-                    this.barConfig.y - this.barConfig.labelPadding - 10,  // Added extra 10px up
-                    'PLAYER 1', 
-                    {
-                        fontFamily: 'Bokor',
-                        fontSize: '32px',
-                        color: '#ffffff',
-                        stroke: '#000000',
-                        strokeThickness: 4
-                    }
+            // Player 1 bars (right-aligned stamina, nudged left)
+            this.p1Bars = {
+                healthBg: this.add.image(this.barConfig.p1x, this.barConfig.y, 'bar-bg')
+                    .setOrigin(0, 0)
+                    .setDepth(98)
+                    .setDisplaySize(this.barConfig.width, this.barConfig.height),
+                healthFill: this.add.image(this.barConfig.p1x, this.barConfig.y, 'bar-fill-2')
+                    .setOrigin(0, 0)
+                    .setDepth(100)
+                    .setDisplaySize(this.barConfig.width, this.barConfig.height),
+                staminaBg: this.add.image(
+                    (this.barConfig.p1x + this.barConfig.width - this.barConfig.staminaWidth) - this.barConfig.nudgeFactor,
+                    this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
+                    'bar-bg'
                 )
-                .setOrigin(1, 0)
-                .setDepth(98);
-
-                this.add.text(this.barConfig.p2x + 5, 
-                    this.barConfig.y - this.barConfig.labelPadding - 10,  // Added extra 10px up
-                    'PLAYER 2', 
-                    {
-                        fontFamily: 'Bokor',
-                        fontSize: '32px',
-                        color: '#ffffff',
-                        stroke: '#000000',
-                        strokeThickness: 4
-                    }
+                    .setOrigin(0, 0)
+                    .setDepth(98)
+                    .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
+                staminaFill: this.add.image(
+                    (this.barConfig.p1x + this.barConfig.width - this.barConfig.staminaWidth) - this.barConfig.nudgeFactor,
+                    this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
+                    'bar-fill-1'
                 )
-                .setOrigin(0, 0)
-                .setDepth(98);
-            }
-        });
+                    .setOrigin(0, 0)
+                    .setDepth(100)
+                    .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
+                health: 100,
+                stamina: 100
+            };
 
-        // Add R key for reset with proper configuration
-        this.rKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
-        
-        // Initialize fight sequence flag
-        this.isFightSequencePlaying = false;
+            // Player 2 bars (left-aligned stamina, nudged right)
+            this.p2Bars = {
+                healthBg: this.add.image(this.barConfig.p2x, this.barConfig.y, 'bar-bg')
+                    .setOrigin(0, 0)
+                    .setDepth(98)
+                    .setDisplaySize(this.barConfig.width, this.barConfig.height),
+                healthFill: this.add.image(this.barConfig.p2x, this.barConfig.y, 'bar-fill-2-right')
+                    .setOrigin(0, 0)
+                    .setDepth(100)
+                    .setDisplaySize(this.barConfig.width, this.barConfig.height),
+                staminaBg: this.add.image(
+                    this.barConfig.p2x + this.barConfig.nudgeFactor,
+                    this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
+                    'bar-bg'
+                )
+                    .setOrigin(0, 0)
+                    .setDepth(98)
+                    .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
+                staminaFill: this.add.image(
+                    this.barConfig.p2x + this.barConfig.nudgeFactor,
+                    this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
+                    'bar-fill-1-right'
+                )
+                    .setOrigin(0, 0)
+                    .setDepth(100)
+                    .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
+                health: 100,
+                stamina: 100
+            };
+
+            // Get the actual texture dimensions
+            const fillTexture = this.textures.get('bar-fill-1');
+            this.barConfig.textureWidth = fillTexture.source[0].width;
+            this.barConfig.textureHeight = fillTexture.source[0].height;
+
+            // Initial setup of crop rectangles using texture dimensions
+            [this.p1Bars, this.p2Bars].forEach(bars => {
+                bars.healthFill.setCrop(0, 0, this.barConfig.textureWidth, this.barConfig.textureHeight);
+                bars.staminaFill.setCrop(0, 0, this.barConfig.textureWidth, this.barConfig.textureHeight);
+            });
+
+            // Add all layers in order with corrected depth and alpha
+            const layers = [
+                { key: 'sky', depth: 0, alpha: 0.75 },
+                { key: 'bg-decor', depth: 1, alpha: 0.75 },
+                { key: 'middle-decor', depth: 2, alpha: 0.8 },
+                { key: 'foreground', depth: 3, alpha: 0.65 },
+                { key: 'ground-01', depth: 4, alpha: 1 }  // Keep ground fully opaque
+            ];
+
+            // Add all layers with basic positioning and alpha
+            layers.forEach(layer => {
+                this.add.image(0, 0, layer.key)
+                    .setOrigin(0, 0)
+                    .setScale(0.5)
+                    .setDepth(layer.depth)
+                    .setAlpha(layer.alpha);
+            });
+
+            // Update the x positions to be more centered
+            this.barConfig.p1x = this.cameras.main.centerX - 420;  // Further left
+            this.barConfig.p2x = this.cameras.main.centerX + 20;   // Keep right position
+
+            // Add keyboard input
+            this.fKey = this.input.keyboard.addKey('F');
+            
+            // Flag to prevent multiple triggers
+            this.isFightSequencePlaying = false;
+
+            // Store initial positions
+            this.playerStartX = this.player.x;
+            this.player2StartX = this.player2.x;
+
+            // Define centerX for use in animations
+            this.centerX = this.cameras.main.centerX;
+
+            // Auto-start the fight sequence after a short delay
+            this.time.delayedCall(1000, () => {
+                this.startFightSequence();
+            });
+
+            // Configure damage number style
+            this.damageNumberConfig = {
+                fontSize: {
+                    damage: '64px',
+                    text: '52px'
+                },
+                fontFamily: 'Bokor',
+                duration: 1500,
+                rise: 200,
+                colors: {
+                    damage: '#ff0000',
+                    block: '#6666ff',
+                    dodge: '#66ffff',
+                    miss: '#ffffff',
+                    counter: '#66ff66'
+                }
+            };
+
+            // Load fonts before creating text
+            WebFont.load({
+                google: {
+                    families: ['Bokor']
+                },
+                active: () => {
+                    // Player labels - moved up 10px
+                    this.add.text(this.barConfig.p1x + this.barConfig.width - 5, 
+                        this.barConfig.y - this.barConfig.labelPadding - 10,  // Added extra 10px up
+                        'PLAYER 1', 
+                        {
+                            fontFamily: 'Bokor',
+                            fontSize: '32px',
+                            color: '#ffffff',
+                            stroke: '#000000',
+                            strokeThickness: 4
+                        }
+                    )
+                    .setOrigin(1, 0)
+                    .setDepth(98);
+
+                    this.add.text(this.barConfig.p2x + 5, 
+                        this.barConfig.y - this.barConfig.labelPadding - 10,  // Added extra 10px up
+                        'PLAYER 2', 
+                        {
+                            fontFamily: 'Bokor',
+                            fontSize: '32px',
+                            color: '#ffffff',
+                            stroke: '#000000',
+                            strokeThickness: 4
+                        }
+                    )
+                    .setOrigin(0, 0)
+                    .setDepth(98);
+                }
+            });
+
+            // Add R key for reset with proper configuration
+            this.rKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+            
+            // Initialize fight sequence flag
+            this.isFightSequencePlaying = false;
+        } catch (error) {
+            console.error('Error in create method:', error);
+        }
     }
 
     update() {
+        // Check if keyboard exists before using it
+        if (!this.rKey) return;  // Early return if keyboard isn't initialized yet
+
         // Simplified R key check without debug logging
         if (Phaser.Input.Keyboard.JustDown(this.rKey)) {
             this.resetFight();
         }
 
+        // Check if players exist before updating their depths
+        if (!this.player || !this.player2) return;
+
         // Dynamic depth adjustment based on who's attacking
-        if (this.player.anims.currentAnim?.key === 'attacking' ||  // Changed from 'slashing'
-            this.player.anims.currentAnim?.key === 'blocking') {   // Changed from 'kicking'
+        if (this.player.anims.currentAnim?.key === 'attacking' ||
+            this.player.anims.currentAnim?.key === 'blocking') {
             this.player.setDepth(6);
             this.player2.setDepth(5);
-        } else if (this.player2.anims.currentAnim?.key === 'attacking2' ||  // Changed from 'slashing2'
-                   this.player2.anims.currentAnim?.key === 'blocking2') {   // Changed from 'kicking2'
+        } else if (this.player2.anims.currentAnim?.key === 'attacking2' ||
+                   this.player2.anims.currentAnim?.key === 'blocking2') {
             this.player2.setDepth(6);
             this.player.setDepth(5);
         } else {
@@ -338,7 +377,8 @@ export default class FightScene extends Phaser.Scene {
             this.player2.setDepth(5);
         }
 
-        if (this.fKey.isDown && !this.isFightSequencePlaying) {
+        // Check if fKey exists before using it
+        if (this.fKey && this.fKey.isDown && !this.isFightSequencePlaying) {
             this.startFightSequence();
         }
     }

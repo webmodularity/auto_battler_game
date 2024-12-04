@@ -12,12 +12,17 @@ export const VALID_ANIMATIONS = {
 };
 
 // Create animations for a sprite
-export function createPlayerAnimations(scene, spriteKey) {
+export function createPlayerAnimations(scene, spriteKey, isPlayer2 = false) {
     const texture = scene.textures.get(spriteKey);
     if (!texture) {
         console.error(`No texture found for: ${spriteKey}`);
         return;
     }
+
+    // Debug: Let's see what frames we actually have
+    const availableFrames = texture.getFrameNames();
+    console.log(`Creating animations for ${spriteKey} (isPlayer2: ${isPlayer2})`);
+    console.log(`Available frames:`, availableFrames);
 
     // Get FPS from texture data
     const jsonData = texture.get('__BASE').customData;
@@ -58,9 +63,11 @@ export function createPlayerAnimations(scene, spriteKey) {
         taunting: fpsSettings.taunting
     };
 
-    // Clear any existing animations for this spriteKey
-    scene.anims.remove(scene.anims.get(spriteKey));
-    
+    // Find a sample frame to detect if we have a prefix
+    const sampleFrame = availableFrames[0] || '';
+    const hasPrefix = sampleFrame.includes('0_Knight_');
+    const framePrefix = hasPrefix ? '0_Knight_' : '';
+
     // Base animations that match their frame names
     const baseAnimations = {
         'idle': { frames: 17, fps: defaultFps.idle, repeat: -1 },
@@ -70,15 +77,18 @@ export function createPlayerAnimations(scene, spriteKey) {
         'hurt': { frames: 11, fps: defaultFps.hurt, repeat: 0 }
     };
 
-    // Create base animations
+    // Create base animations with proper prefixes
     Object.entries(baseAnimations).forEach(([key, config]) => {
-        if (scene.anims.exists(key)) {
-            scene.anims.remove(key);
+        const animKey = isPlayer2 ? `${key}2` : key;
+        
+        if (scene.anims.exists(animKey)) {
+            scene.anims.remove(animKey);
         }
+
         scene.anims.create({
-            key: key,
+            key: animKey,
             frames: scene.anims.generateFrameNames(spriteKey, {
-                prefix: `${key.charAt(0).toUpperCase() + key.slice(1)}_`,
+                prefix: `${framePrefix}${key.charAt(0).toUpperCase() + key.slice(1)}_`,
                 start: 0,
                 end: config.frames,
                 zeroPad: 3,
@@ -89,26 +99,23 @@ export function createPlayerAnimations(scene, spriteKey) {
         });
     });
 
-    // Special handling for attack animations since they can have different names
+    // Special handling for attack animations
     const attackAnimations = [
-        'Slashing',
-        'Swinging Rod'
+        `${framePrefix}Slashing`,
+        `${framePrefix}Swinging Rod`
     ];
 
     // Try each attack animation type until we find one that exists
-    let attackAnimationCreated = false;
     for (const attackType of attackAnimations) {
-        // Skip if we already created an attack animation
-        if (scene.anims.exists('attacking')) {  // Check for existing animation before trying to create
-            attackAnimationCreated = true;
-            break;
-        }
+        const animKey = isPlayer2 ? 'attacking2' : 'attacking';
+        
+        if (scene.anims.exists(animKey)) continue;
         
         const frames = texture.getFrameNames().filter(name => name.startsWith(`${attackType}_`));
         if (frames.length === 0) continue;
         
         scene.anims.create({
-            key: 'attacking',
+            key: animKey,
             frames: scene.anims.generateFrameNames(spriteKey, {
                 prefix: `${attackType}_`,
                 start: 0,
@@ -119,19 +126,20 @@ export function createPlayerAnimations(scene, spriteKey) {
             frameRate: defaultFps.attacking,
             repeat: 0
         });
-        attackAnimationCreated = true;
     }
 
     // Mapped animations that need different prefixes
     const mappedAnimations = {
-        'Kicking': { newName: 'blocking', fps: defaultFps.blocking, frames: 11, repeat: 0 },
-        'Sliding': { newName: 'dodging', fps: defaultFps.dodging, frames: 5, repeat: 0 },
-        'Throwing': { newName: 'taunting', fps: defaultFps.taunting, frames: 11, repeat: 0 }
+        [`${framePrefix}Kicking`]: { newName: 'blocking', fps: defaultFps.blocking, frames: 11, repeat: 0 },
+        [`${framePrefix}Sliding`]: { newName: 'dodging', fps: defaultFps.dodging, frames: 5, repeat: 0 },
+        [`${framePrefix}Throwing`]: { newName: 'taunting', fps: defaultFps.taunting, frames: 11, repeat: 0 }
     };
 
     // Create mapped animations
     Object.entries(mappedAnimations).forEach(([originalName, config]) => {
-        if (scene.anims.exists(config.newName)) {
+        const animKey = isPlayer2 ? `${config.newName}2` : config.newName;
+        
+        if (scene.anims.exists(animKey)) {
             return;
         }
         
@@ -141,7 +149,7 @@ export function createPlayerAnimations(scene, spriteKey) {
         }
         
         scene.anims.create({
-            key: config.newName,
+            key: animKey,
             frames: scene.anims.generateFrameNames(spriteKey, {
                 prefix: `${originalName}_`,
                 start: 0,

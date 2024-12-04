@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import WebFont from 'webfontloader';
 import { createPlayerAnimations } from '../animations/playerAnimations';
+import { loadCharacterData } from '../utils/nftLoader';
 
 export default class TitleScene extends Phaser.Scene {
     constructor() {
@@ -212,8 +213,19 @@ export default class TitleScene extends Phaser.Scene {
                     if (nextX >= this.worldBounds.playerRight - 10) {
                         this.cameras.main.fade(1000, 0, 0, 0);
                         this.time.delayedCall(1000, () => {
-                            this.scene.start('FightScene', {
-                                combatLog: "0x02000100070a0500070005000d0001000d0a0100070a050007000600140c01001f0a01000e0a05000e0005001f0001001f0a01000e0a05000e0005000d0001000d0a0100070a0500070005000d0001000d0a"
+                            Promise.all([
+                                loadCharacterData('1'),
+                                loadCharacterData('2')
+                            ]).then(([player1Data, player2Data]) => {
+                                this.scene.start('FightScene', {
+                                    player1Id: '1',
+                                    player2Id: '2',
+                                    player1Data,
+                                    player2Data
+                                });
+                            }).catch(error => {
+                                console.error('Error loading character data:', error);
+                                // Handle error, maybe show a message or retry
                             });
                         });
                     }

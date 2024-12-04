@@ -13,6 +13,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "alchemy-sdk": "^3.5.0",
     "phaser": "^3.87.0",
     "viem": "^2.21.49",
     "webfontloader": "^1.6.28"
