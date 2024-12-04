@@ -71,7 +71,6 @@ const alchemy = new Alchemy(settings);
 export async function loadCharacterData(playerId) {
     try {
         const networkName = getAlchemyNetwork(settings.network);
-        console.log('Using network:', networkName);
         
         const transport = http(`https://${networkName}.g.alchemy.com/v2/${settings.apiKey}`);
         const client = createPublicClient({
@@ -128,20 +127,14 @@ export async function loadCharacterData(playerId) {
             if (tokenURI.startsWith('ipfs://')) {
                 const ipfsHash = tokenURI.replace('ipfs://', '');
                 const ipfsUrl = `https://ipfs.io/ipfs/${ipfsHash}`;
-                console.log('Fetching IPFS metadata from:', ipfsUrl);
                 const response = await fetch(ipfsUrl);
                 const rawText = await response.text();
                 metadata = JSON.parse(rawText);
                 
-                console.log('Parsed metadata:', metadata);
-                
-                // Convert IPFS spritesheet URL to HTTP URL if needed
                 let spritesheetUrl = metadata.image_spritesheet;
                 if (spritesheetUrl && spritesheetUrl.startsWith('ipfs://')) {
                     spritesheetUrl = spritesheetUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
                 }
-                
-                console.log('Spritesheet URL:', spritesheetUrl);
 
                 return {
                     stats,
@@ -150,7 +143,6 @@ export async function loadCharacterData(playerId) {
                     jsonData: metadata
                 };
             } else {
-                console.log('Fetching HTTP metadata from:', tokenURI);
                 const response = await fetch(tokenURI);
                 const rawText = await response.text();
                 metadata = JSON.parse(rawText);
@@ -170,15 +162,10 @@ export async function loadCharacterData(playerId) {
             };
 
         } catch (error) {
-            console.error('Error processing metadata:', error);
-            console.error('Token URI was:', tokenURI);
             throw error;
         }
 
     } catch (error) {
-        console.error('Error loading character data:', error);
-        console.error('Network:', settings.network);
-        console.error('API Key:', settings.apiKey ? 'Present' : 'Missing');
         throw error;
     }
 } 

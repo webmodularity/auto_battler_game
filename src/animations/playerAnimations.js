@@ -14,15 +14,7 @@ export const VALID_ANIMATIONS = {
 // Create animations for a sprite
 export function createPlayerAnimations(scene, spriteKey, isPlayer2 = false) {
     const texture = scene.textures.get(spriteKey);
-    if (!texture) {
-        console.error(`No texture found for: ${spriteKey}`);
-        return;
-    }
-
-    // Debug: Let's see what frames we actually have
-    const availableFrames = texture.getFrameNames();
-    console.log(`Creating animations for ${spriteKey} (isPlayer2: ${isPlayer2})`);
-    console.log(`Available frames:`, availableFrames);
+    if (!texture) return;
 
     // Get FPS from texture data
     const jsonData = texture.get('__BASE').customData;
@@ -43,10 +35,15 @@ export function createPlayerAnimations(scene, spriteKey, isPlayer2 = false) {
     // Try to get FPS settings from the JSON structure
     let fpsSettings = defaultFpsValues;
     
-    if (jsonData && jsonData.textures && jsonData.textures[0] && jsonData.textures[0].fps) {
+    if (jsonData && jsonData.fps) {
         fpsSettings = {
-            ...defaultFpsValues,  // Fallback values
-            ...jsonData.textures[0].fps  // Override with JSON values
+            ...defaultFpsValues,
+            ...jsonData.fps
+        };
+    } else if (jsonData && jsonData.textures && jsonData.textures[0] && jsonData.textures[0].fps) {
+        fpsSettings = {
+            ...defaultFpsValues,
+            ...jsonData.textures[0].fps
         };
     }
 
@@ -64,7 +61,7 @@ export function createPlayerAnimations(scene, spriteKey, isPlayer2 = false) {
     };
 
     // Find a sample frame to detect if we have a prefix
-    const sampleFrame = availableFrames[0] || '';
+    const sampleFrame = texture.getFrameNames()[0] || '';
     const hasPrefix = sampleFrame.includes('0_Knight_');
     const framePrefix = hasPrefix ? '0_Knight_' : '';
 

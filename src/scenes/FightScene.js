@@ -66,15 +66,6 @@ export default class FightScene extends Phaser.Scene {
     }
 
     init(data) {
-        console.log('FightScene init with data:', {
-            player1Id: data.player1Id,
-            player2Id: data.player2Id,
-            player1DataExists: !!data.player1Data,
-            player2DataExists: !!data.player2Data,
-            player1Frames: data.player1Data?.jsonData?.frames?.length,
-            player2Frames: data.player2Data?.jsonData?.frames?.length
-        });
-        
         this.player1Id = data.player1Id;
         this.player2Id = data.player2Id;
         this.player1Data = data.player1Data;
@@ -97,57 +88,34 @@ export default class FightScene extends Phaser.Scene {
         this.load.image('bar-fill-2-right', '/assets/ui/load_bar_2_right.png');
         this.load.image('bar-dark', '/assets/ui/dark.png');
 
-        // Debug the data we have
-        console.log('Preloading with data:', {
-            player1Url: this.player1Data?.spritesheetUrl,
-            player2Url: this.player2Data?.spritesheetUrl,
-            player1JsonExists: !!this.player1Data?.jsonData,
-            player2JsonExists: !!this.player2Data?.jsonData
-        });
-
         // Load the spritesheets with explicit error handling
         if (this.player1Data?.spritesheetUrl && this.player1Data?.jsonData) {
-            console.log('Loading player1 atlas with:', {
-                key: 'player1',
-                url: this.player1Data.spritesheetUrl,
-                jsonFrames: Object.keys(this.player1Data.jsonData.frames || {}).length
-            });
             this.load.atlas('player1', this.player1Data.spritesheetUrl, this.player1Data.jsonData);
         }
 
         if (this.player2Data?.spritesheetUrl && this.player2Data?.jsonData) {
-            console.log('Loading player2 atlas with:', {
-                key: 'player2',
-                url: this.player2Data.spritesheetUrl,
-                jsonFrames: Object.keys(this.player2Data.jsonData.frames || {}).length
-            });
             this.load.atlas('player2', this.player2Data.spritesheetUrl, this.player2Data.jsonData);
         }
 
-        // Add error handler
+        // Add error handler for critical errors only
         this.load.on('loaderror', (fileObj) => {
-            console.error('Error loading file:', fileObj.key, fileObj.url);
-            console.error('Error details:', fileObj.data);
-        });
-
-        // Add load complete handler
-        this.load.on('complete', () => {
-            const textures = this.textures.list;
-            console.log('Loaded textures:', {
-                player1Exists: !!textures.player1,
-                player2Exists: !!textures.player2,
-                player1Frames: textures.player1?.frameTotal,
-                player2Frames: textures.player2?.frameTotal
-            });
+            console.error('Error loading file:', fileObj.key);
         });
     }
 
     async create() {
         try {
-            // Create animations for both players without clearing
-            createPlayerAnimations(this, 'player1');  // Changed from knight1
-            createPlayerAnimations(this, 'player2', true);  // Changed from knight2, added isPlayer2 flag
+            // Before creating animations, ensure customData is set for both players
+            if (this.player2Data?.jsonData) {
+                const texture = this.textures.get('player2');
+                const baseFrame = texture.get('__BASE');
+                baseFrame.customData = this.player2Data.jsonData;
+            }
 
+            // Create animations for both players
+            createPlayerAnimations(this, 'player1');
+            createPlayerAnimations(this, 'player2', true);
+            
             // Create player sprites with updated keys
             this.player = this.add.sprite(125, 425, 'player1')  // Changed from knight1
                 .setFlipX(false);
