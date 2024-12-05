@@ -157,10 +157,11 @@ export default class TitleScene extends Phaser.Scene {
             playerRight: this.BACKGROUND_WIDTH - (SPRITE_WIDTH + 25)  // Added extra padding on right
         };
 
-        // Create player starting in center with knight3 texture
-        this.player = this.add.sprite(this.BACKGROUND_WIDTH/2, height - 150, playerKey)
+        // Create player starting in center with proper ground position
+        this.player = this.add.sprite(this.BACKGROUND_WIDTH/2, height, playerKey)
             .setScale(1)
-            .setDepth(6);
+            .setDepth(6)
+            .setOrigin(0.5, 1);
         
         // Make camera follow the player without physics
         this.cameras.main.startFollow(this.player, true, 0.1, 0.1);  // Smoother following
@@ -183,6 +184,14 @@ export default class TitleScene extends Phaser.Scene {
 
         // Start with idle animation
         this.player.play('idle');
+
+        // Add these debug lines
+        console.log('Current animation frames:', this.player.anims.currentAnim?.frames);
+        console.log('Available frame names:', this.textures.get(playerKey).getFrameNames());
+
+        // Add this debug line
+        const frame = this.textures.get('player1').get('idle_000.png');
+        console.log('Frame dimensions:', frame.width, frame.height);
     }
 
     update() {
@@ -225,7 +234,6 @@ export default class TitleScene extends Phaser.Scene {
                                 });
                             }).catch(error => {
                                 console.error('Error loading character data:', error);
-                                // Handle error, maybe show a message or retry
                             });
                         });
                     }

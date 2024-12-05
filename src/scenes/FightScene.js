@@ -105,6 +105,53 @@ export default class FightScene extends Phaser.Scene {
 
     async create() {
         try {
+            // Enable physics
+            this.physics.world.setBounds(0, 0, this.cameras.main.width, this.cameras.main.height);
+
+            // Define the ground level - move it down
+            const groundY = 600;  // Changed from 650 to 550
+
+            // Create a ground surface
+            const ground = this.add.rectangle(0, groundY, this.cameras.main.width, 10, 0x000000)
+                .setOrigin(0, 0);
+            this.physics.add.existing(ground, true);  // Static body
+
+            // Create player sprites with physics at their starting positions
+            this.player = this.physics.add.sprite(125, groundY - 40, 'player1')  // Now at 510
+                .setFlipX(false)
+                .setOrigin(0.5, 1)
+                .setDisplaySize(300, 300);
+
+            this.player2 = this.physics.add.sprite(835, groundY - 40, 'player2')  // Now at 510
+                .setFlipX(true)
+                .setOrigin(0.5, 1)
+                .setDisplaySize(300, 300);
+
+            // After creating animations, force the origin for both sprites
+            this.player.setOrigin(0.5, 1);
+            this.player2.setOrigin(0.5, 1);
+
+            // Add debug to see if origins are being set
+            console.log('After setting origin:');
+            console.log('Player 1 origin:', {x: this.player.originX, y: this.player.originY});
+            console.log('Player 2 origin:', {x: this.player2.originX, y: this.player2.originY});
+
+            // Optional: Log sprite dimensions for debugging
+            console.log('Player 1 dimensions:', {
+                height: this.player.height,
+                displayHeight: this.player.displayHeight,
+                origin: this.player.origin
+            });
+
+            console.log('Player 2 dimensions:', {
+                height: this.player2.height,
+                displayHeight: this.player2.displayHeight,
+                origin: this.player2.origin
+            });
+
+            // No need to adjust Y position since origin is at feet level
+            // and both sprites are positioned exactly at groundY
+
             // Before creating animations, ensure customData is set for both players
             if (this.player2Data?.jsonData) {
                 const texture = this.textures.get('player2');
@@ -116,12 +163,12 @@ export default class FightScene extends Phaser.Scene {
             createPlayerAnimations(this, 'player1');
             createPlayerAnimations(this, 'player2', true);
             
-            // Create player sprites with updated keys
-            this.player = this.add.sprite(125, 425, 'player1')  // Changed from knight1
-                .setFlipX(false);
-            this.player2 = this.add.sprite(835, 425, 'player2')  // Changed from knight2
-                .setFlipX(true);
-
+            // Add debug markers to visualize the ground level (temporary for debugging)
+            const debugLineColor = 0xff0000;  // Red color
+            const graphics = this.add.graphics();
+            graphics.lineStyle(1, debugLineColor);
+            graphics.lineBetween(0, groundY, this.cameras.main.width, groundY);
+            
             // Start with idle animations
             this.player.play('idle');
             this.player2.play('idle2');
@@ -241,7 +288,7 @@ export default class FightScene extends Phaser.Scene {
             // Flag to prevent multiple triggers
             this.isFightSequencePlaying = false;
 
-            // Store initial positions
+            // Store initial positions for reset functionality
             this.playerStartX = this.player.x;
             this.player2StartX = this.player2.x;
 
@@ -313,6 +360,14 @@ export default class FightScene extends Phaser.Scene {
             
             // Initialize fight sequence flag
             this.isFightSequencePlaying = false;
+
+            // Let's also check the actual animation frame data
+            console.log('Player 1 animation frames:', this.anims.get('idle').frames);
+            console.log('Player 2 animation frames:', this.anims.get('idle2').frames);
+
+            // Check the texture data directly
+            console.log('Player 1 texture data:', this.textures.get('player1').frames);
+            console.log('Player 2 texture data:', this.textures.get('player2').frames);
         } catch (error) {
             console.error('Error in create method:', error);
         }
@@ -352,7 +407,7 @@ export default class FightScene extends Phaser.Scene {
     }
 
     startFightSequence() {
-        if (this.isFightSequencePlaying || !this.combatData) {
+        if (this.isFightSequencePlaying) {
             return;
         }
 
@@ -360,7 +415,7 @@ export default class FightScene extends Phaser.Scene {
         
         // Start countdown sequence
         this.startCountdown().then(() => {
-            // Initial run to center (moved from original startFightSequence)
+            // Initial run to center
             this.player.play('running');
             this.player2.play('running2');
 
@@ -369,25 +424,20 @@ export default class FightScene extends Phaser.Scene {
                 this.tweens.add({
                     targets: this.player,
                     x: this.centerX - 75,
-                    duration: 1000
+                    duration: 1000,
+                    onComplete: () => {
+                        this.player.play('idle');
+                    }
                 }),
                 this.tweens.add({
                     targets: this.player2,
                     x: this.centerX + 75,
-                    duration: 1000
+                    duration: 1000,
+                    onComplete: () => {
+                        this.player2.play('idle2');
+                    }
                 })
             ];
-
-            // Rest of the existing startFightSequence code...
-            Promise.all(moveToCenter.map(tween => new Promise(resolve => tween.once('complete', resolve))))
-                .then(() => {
-                    this.player.play('idle');
-                    this.player2.play('idle2');
-                    
-                    this.time.delayedCall(this.INITIAL_DELAY, () => {
-                        this.playCombatSequence(0);
-                    });
-                });
         });
     }
 
@@ -631,6 +681,59 @@ export default class FightScene extends Phaser.Scene {
                 this.showDamageNumber(this.player.x, this.player.y - 50, action.p2Damage, 'damage');
                 this.player.play('hurt');
             });
+        }
+
+        // After the existing MISS + COUNTER sequence...
+        else if (action.p1Result === 'CRIT' && action.p2Result === 'HIT') {
+            animationTriggered = true;
+            this.player.play('attacking');
+            this.showDamageNumber(this.player.x, this.player.y - 100, 'Critical!', 'counter');
+            
+            this.time.delayedCall(400, () => {
+                this.player2.play('hurt2');
+                this.showDamageNumber(this.player2.x, this.player2.y - 50, action.p1Damage, 'damage');
+            });
+        }
+        // Add PARRY handling
+        else if (action.p1Result === 'ATTACK' && action.p2Result === 'PARRY') {
+            animationTriggered = true;
+            this.player.play('attacking');
+            this.time.delayedCall(400, () => {
+                this.player2.play('blocking2'); // Using block animation for parry for now
+                this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Parry', 'block');
+            });
+        }
+        // Add RIPOSTE handling
+        else if (action.p2Result === 'RIPOSTE' || action.p2Result === 'RIPOSTE_CRIT') {
+            if (!animationTriggered) {
+                this.showDamageNumber(this.player2.x, this.player2.y - 100, 'Riposte!', 'counter');
+                if (action.p2Result === 'RIPOSTE_CRIT') {
+                    this.time.delayedCall(200, () => {
+                        this.showDamageNumber(this.player2.x, this.player2.y - 150, 'Critical!', 'counter');
+                    });
+                }
+                this.player2.play('attacking2');
+                
+                this.time.delayedCall(400, () => {
+                    this.player.play('hurt');
+                    this.showDamageNumber(this.player.x, this.player.y - 50, action.p2Damage, 'damage');
+                });
+            }
+        }
+        // Add COUNTER_CRIT handling
+        else if (action.p2Result === 'COUNTER_CRIT') {
+            if (!animationTriggered) {
+                this.showDamageNumber(this.player2.x, this.player2.y - 100, 'Counter!', 'counter');
+                this.time.delayedCall(200, () => {
+                    this.showDamageNumber(this.player2.x, this.player2.y - 150, 'Critical!', 'counter');
+                });
+                this.player2.play('attacking2');
+                
+                this.time.delayedCall(400, () => {
+                    this.player.play('hurt');
+                    this.showDamageNumber(this.player.x, this.player.y - 50, action.p2Damage, 'damage');
+                });
+            }
         }
 
         // If no animation was triggered, show the ??? symbol

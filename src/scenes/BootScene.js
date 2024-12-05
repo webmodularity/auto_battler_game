@@ -58,21 +58,26 @@ export default class BootScene extends Phaser.Scene {
         // Load player atlas
         const PLAYER_ID = '1';
         const IPFS_BASE_URL = 'https://ipfs.io/ipfs';
-        const JSON_HASH = 'QmZdXdKfHi9MqbdhXMoujfmyGy8EMZ1sVkHD7e1ynLSqJU';
-        const SPRITE_HASH = 'QmNfDodYWAN9i6CtH2WRayAKmszidDQQYkH9d3Upk6kXqK';
+        const JSON_HASH = 'QmTZzCarXPyWK483Eve4NsQLwiJbCuWhAbnPx2sVRyfKqC';
         
         // Load JSON first
         this.load.json(`player${PLAYER_ID}-data`, `${IPFS_BASE_URL}/${JSON_HASH}`);
         
         // Wait for JSON to load before loading atlas
         this.load.once('filecomplete-json-player1-data', () => {
-            // Use the loaded JSON data for the atlas
             const jsonData = this.cache.json.get(`player${PLAYER_ID}-data`);
+            
+            if (!jsonData.image_spritesheet) {
+                console.error(`Error: No spritesheet data found for player${PLAYER_ID}`);
+                return;
+            }
+
+            const spriteHash = jsonData.image_spritesheet.replace('ipfs://', '');
             
             this.load.atlas(
                 `player${PLAYER_ID}`, 
-                `${IPFS_BASE_URL}/${SPRITE_HASH}`,
-                jsonData  // Use the already loaded JSON data
+                `${IPFS_BASE_URL}/${spriteHash}`,
+                jsonData
             );
         });
     }

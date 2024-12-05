@@ -2,26 +2,34 @@ import { decodeEventLog } from 'viem';
 
 // Enums matching the Solidity contract exactly
 const CombatResultType = {
-    MISS: 0,
-    ATTACK: 1,
-    BLOCK: 2,
-    COUNTER: 3,
-    DODGE: 4,
-    HIT: 5
+    MISS: 0,        // Complete miss, some stamina cost
+    ATTACK: 1,      // Normal successful attack
+    CRIT: 2,        // Critical hit
+    BLOCK: 3,       // Successfully blocked attack
+    COUNTER: 4,     // Counter attack after block/dodge
+    COUNTER_CRIT: 5, // Critical counter attack
+    DODGE: 6,       // Successfully dodged attack
+    PARRY: 7,       // Successfully parried attack
+    RIPOSTE: 8,     // Counter attack after parry
+    RIPOSTE_CRIT: 9, // Critical counter after parry
+    EXHAUSTED: 10,   // Failed due to stamina
+    HIT: 11         // Taking full damage (failed defense)
 };
 
 const WinCondition = {
-    HEALTH: 0,    // Won by reducing opponent's health to 0
-    EXHAUSTION: 1, // Won because opponent couldn't attack (low stamina)
-    MAX_ROUNDS: 2  // Won by having more health after max rounds
+    HEALTH: 0,     // Won by reducing opponent's health to 0
+    EXHAUSTION: 1,  // Won because opponent couldn't attack (low stamina)
+    MAX_ROUNDS: 2   // Won by having more health after max rounds
 };
 
 // Constants matching the contract
-const STAMINA_ATTACK = 10;
-const STAMINA_BLOCK = 12;
-const STAMINA_DODGE = 8;
-const STAMINA_COUNTER = 15;
+const STAMINA_ATTACK = 8;
+const STAMINA_BLOCK = 5;
+const STAMINA_DODGE = 4;
+const STAMINA_COUNTER = 6;
+const STAMINA_PARRY = 5;
 const MAX_ROUNDS = 50;
+const MINIMUM_ACTION_COST = 3;
 
 // Create ABI fragment for the combat event
 const combatAbi = [{
@@ -43,18 +51,18 @@ function decodeCombatLog(results) {
         hexString.match(/.{1,2}/g).map(byte => parseInt(byte, 16))
     );
 
-    if (bytes.length < 2) throw new Error("Results too short");
+    if (bytes.length < 5) throw new Error("Results too short");
 
-    // Extract winner and condition from first two bytes
-    const winner = bytes[0];
-    const condition = bytes[1];
+    // Extract winner ID (4 bytes) and condition
+    const winner = (bytes[0] << 24) | (bytes[1] << 16) | (bytes[2] << 8) | bytes[3];
+    const condition = bytes[4];
 
     // Decode remaining combat actions
-    const numActions = Math.floor((bytes.length - 2) / 8);
+    const numActions = Math.floor((bytes.length - 5) / 8);
     const actions = [];
 
     for (let i = 0; i < numActions; i++) {
-        const offset = 2 + (i * 8);
+        const offset = 5 + (i * 8);
         
         // First cast to uint16 before shifting to prevent overflow
         const p1DamageHigh = bytes[offset + 1] & 0xFF;  // ensure unsigned 8-bit
@@ -99,5 +107,7 @@ export {
     STAMINA_BLOCK,
     STAMINA_DODGE,
     STAMINA_COUNTER,
-    MAX_ROUNDS
+    STAMINA_PARRY,
+    MAX_ROUNDS,
+    MINIMUM_ACTION_COST
 }; 
