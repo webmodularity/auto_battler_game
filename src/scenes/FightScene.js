@@ -1,8 +1,12 @@
 import * as Phaser from 'phaser';
-import { decodeCombatLog } from '../utils/combatDecoder';
+import { CombatResultType, WinCondition, getEnumKeyByValue } from '../utils/combatDecoder';
 import * as WebFont from 'webfontloader';
 import { createPlayerAnimations } from '../animations/playerAnimations';
 import { loadCharacterData } from '../utils/nftLoader';
+import { loadCombatBytes } from '../utils/combatLoader';
+import { CombatAnimator } from '../combat/combatAnimator';
+import { CombatSequenceHandler } from '../combat/combatSequenceHandler';
+import { VictoryHandler } from '../combat/victoryHandler';
 
 export default class FightScene extends Phaser.Scene {
     constructor() {
@@ -20,8 +24,8 @@ export default class FightScene extends Phaser.Scene {
             textureHeight: 64
         };
         this.combatData = null;
-        this.SEQUENCE_DELAY = 2500;  // Changed from 1500 to 2500
-        this.COUNTER_DELAY = 1250;   // Changed from 750 to 1250 (half of SEQUENCE_DELAY)
+        this.SEQUENCE_DELAY = 1500;  // 2 seconds between actions
+        this.COUNTER_DELAY = 1000;   // Additional 1 second for counter sequences
         this.INITIAL_DELAY = 1000;   // Kept the same
         this.countdownConfig = {
             fontSize: '120px',
@@ -63,6 +67,9 @@ export default class FightScene extends Phaser.Scene {
                 color: '#ffffff'
             }
         };
+        this.animator = null;
+        this.sequenceHandler = null;
+        this.victoryHandler = new VictoryHandler(this);
     }
 
     init(data) {
@@ -70,6 +77,9 @@ export default class FightScene extends Phaser.Scene {
         this.player2Id = data.player2Id;
         this.player1Data = data.player1Data;
         this.player2Data = data.player2Data;
+
+        // Remove async/await from init and move combat loading to create
+        this.combatData = null;  // Initialize as null, will be loaded in create
     }
 
     async preload() {
@@ -105,52 +115,41 @@ export default class FightScene extends Phaser.Scene {
 
     async create() {
         try {
-            // Enable physics
-            this.physics.world.setBounds(0, 0, this.cameras.main.width, this.cameras.main.height);
+            // Add all layers in order with corrected depth and alpha FIRST
+            const layers = [
+                { key: 'sky', depth: 0, alpha: 0.75 },
+                { key: 'bg-decor', depth: 1, alpha: 0.75 },
+                { key: 'middle-decor', depth: 2, alpha: 0.8 },
+                { key: 'foreground', depth: 3, alpha: 0.65 },
+                { key: 'ground-01', depth: 4, alpha: 1 }
+            ];
 
-            // Define the ground level - move it down
-            const groundY = 600;  // Changed from 650 to 550
+            // Add all layers with basic positioning and alpha
+            layers.forEach(layer => {
+                this.add.image(0, 0, layer.key)
+                    .setOrigin(0, 0)
+                    .setScale(0.5)
+                    .setDepth(layer.depth)
+                    .setAlpha(layer.alpha);
+            });
 
-            // Create a ground surface
-            const ground = this.add.rectangle(0, groundY, this.cameras.main.width, 10, 0x000000)
-                .setOrigin(0, 0);
-            this.physics.add.existing(ground, true);  // Static body
-
-            // Create player sprites with physics at their starting positions
-            this.player = this.physics.add.sprite(125, groundY - 40, 'player1')  // Now at 510
+            // THEN create sprites (only once)
+            const groundY = 600;
+            this.player = this.physics.add.sprite(125, groundY - 40, 'player1')
                 .setFlipX(false)
                 .setOrigin(0.5, 1)
-                .setDisplaySize(300, 300);
+                .setDisplaySize(300, 300)
+                .setDepth(5);  // Make sure depth is set higher than background
 
-            this.player2 = this.physics.add.sprite(835, groundY - 40, 'player2')  // Now at 510
+            this.player2 = this.physics.add.sprite(835, groundY - 40, 'player2')
                 .setFlipX(true)
                 .setOrigin(0.5, 1)
-                .setDisplaySize(300, 300);
+                .setDisplaySize(300, 300)
+                .setDepth(5);  // Make sure depth is set higher than background
 
             // After creating animations, force the origin for both sprites
             this.player.setOrigin(0.5, 1);
             this.player2.setOrigin(0.5, 1);
-
-            // Add debug to see if origins are being set
-            console.log('After setting origin:');
-            console.log('Player 1 origin:', {x: this.player.originX, y: this.player.originY});
-            console.log('Player 2 origin:', {x: this.player2.originX, y: this.player2.originY});
-
-            // Optional: Log sprite dimensions for debugging
-            console.log('Player 1 dimensions:', {
-                height: this.player.height,
-                displayHeight: this.player.displayHeight,
-                origin: this.player.origin
-            });
-
-            console.log('Player 2 dimensions:', {
-                height: this.player2.height,
-                displayHeight: this.player2.displayHeight,
-                origin: this.player2.origin
-            });
-
-            // No need to adjust Y position since origin is at feet level
-            // and both sprites are positioned exactly at groundY
 
             // Before creating animations, ensure customData is set for both players
             if (this.player2Data?.jsonData) {
@@ -162,13 +161,7 @@ export default class FightScene extends Phaser.Scene {
             // Create animations for both players
             createPlayerAnimations(this, 'player1');
             createPlayerAnimations(this, 'player2', true);
-            
-            // Add debug markers to visualize the ground level (temporary for debugging)
-            const debugLineColor = 0xff0000;  // Red color
-            const graphics = this.add.graphics();
-            graphics.lineStyle(1, debugLineColor);
-            graphics.lineBetween(0, groundY, this.cameras.main.width, groundY);
-            
+
             // Start with idle animations
             this.player.play('idle');
             this.player2.play('idle2');
@@ -260,117 +253,150 @@ export default class FightScene extends Phaser.Scene {
                 bars.staminaFill.setCrop(0, 0, this.barConfig.textureWidth, this.barConfig.textureHeight);
             });
 
-            // Add all layers in order with corrected depth and alpha
-            const layers = [
-                { key: 'sky', depth: 0, alpha: 0.75 },
-                { key: 'bg-decor', depth: 1, alpha: 0.75 },
-                { key: 'middle-decor', depth: 2, alpha: 0.8 },
-                { key: 'foreground', depth: 3, alpha: 0.65 },
-                { key: 'ground-01', depth: 4, alpha: 1 }  // Keep ground fully opaque
-            ];
+            // Enable physics
+            this.physics.world.setBounds(0, 0, this.cameras.main.width, this.cameras.main.height);
 
-            // Add all layers with basic positioning and alpha
-            layers.forEach(layer => {
-                this.add.image(0, 0, layer.key)
-                    .setOrigin(0, 0)
-                    .setScale(0.5)
-                    .setDepth(layer.depth)
-                    .setAlpha(layer.alpha);
-            });
+            // Load combat bytes and decode first
+            try {
+                const combatData = await loadCombatBytes(this.player1Id, this.player2Id);
+                console.log('Combat Data before assignment:', combatData);
+                
+                // Explicitly assign each property
+                this.combatData = {
+                    winner: combatData.winner,
+                    condition: combatData.condition,
+                    actions: [...combatData.actions]  // Create a new array copy
+                };
+                
+                console.log('Combat Data after assignment:', this.combatData);
 
-            // Update the x positions to be more centered
-            this.barConfig.p1x = this.cameras.main.centerX - 420;  // Further left
-            this.barConfig.p2x = this.cameras.main.centerX + 20;   // Keep right position
-
-            // Add keyboard input
-            this.fKey = this.input.keyboard.addKey('F');
-            
-            // Flag to prevent multiple triggers
-            this.isFightSequencePlaying = false;
-
-            // Store initial positions for reset functionality
-            this.playerStartX = this.player.x;
-            this.player2StartX = this.player2.x;
-
-            // Define centerX for use in animations
-            this.centerX = this.cameras.main.centerX;
-
-            // Auto-start the fight sequence after a short delay
-            this.time.delayedCall(1000, () => {
-                this.startFightSequence();
-            });
-
-            // Configure damage number style
-            this.damageNumberConfig = {
-                fontSize: {
-                    damage: '64px',
-                    text: '52px'
-                },
-                fontFamily: 'Bokor',
-                duration: 1500,
-                rise: 200,
-                colors: {
-                    damage: '#ff0000',
-                    block: '#6666ff',
-                    dodge: '#66ffff',
-                    miss: '#ffffff',
-                    counter: '#66ff66'
+                if (!this.combatData?.actions?.length) {
+                    throw new Error('No combat actions available');
                 }
-            };
 
-            // Load fonts before creating text
-            WebFont.load({
-                google: {
-                    families: ['Bokor']
-                },
-                active: () => {
-                    // Player labels - moved up 10px
-                    this.add.text(this.barConfig.p1x + this.barConfig.width - 5, 
-                        this.barConfig.y - this.barConfig.labelPadding - 10,  // Added extra 10px up
-                        'PLAYER 1', 
-                        {
-                            fontFamily: 'Bokor',
-                            fontSize: '32px',
-                            color: '#ffffff',
-                            stroke: '#000000',
-                            strokeThickness: 4
-                        }
-                    )
-                    .setOrigin(1, 0)
-                    .setDepth(98);
+                // Update the x positions to be more centered
+                this.barConfig.p1x = this.cameras.main.centerX - 420;  // Further left
+                this.barConfig.p2x = this.cameras.main.centerX + 20;   // Keep right position
 
-                    this.add.text(this.barConfig.p2x + 5, 
-                        this.barConfig.y - this.barConfig.labelPadding - 10,  // Added extra 10px up
-                        'PLAYER 2', 
-                        {
-                            fontFamily: 'Bokor',
-                            fontSize: '32px',
-                            color: '#ffffff',
-                            stroke: '#000000',
-                            strokeThickness: 4
-                        }
-                    )
-                    .setOrigin(0, 0)
-                    .setDepth(98);
-                }
-            });
+                // Add keyboard input
+                this.fKey = this.input.keyboard.addKey('F');
+                
+                // Flag to prevent multiple triggers
+                this.isFightSequencePlaying = false;
 
-            // Add R key for reset with proper configuration
-            this.rKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
-            
-            // Initialize fight sequence flag
-            this.isFightSequencePlaying = false;
+                // Store initial positions for reset functionality
+                this.playerStartX = this.player.x;
+                this.player2StartX = this.player2.x;
 
-            // Let's also check the actual animation frame data
-            console.log('Player 1 animation frames:', this.anims.get('idle').frames);
-            console.log('Player 2 animation frames:', this.anims.get('idle2').frames);
+                // Define centerX for use in animations
+                this.centerX = this.cameras.main.centerX;
 
-            // Check the texture data directly
-            console.log('Player 1 texture data:', this.textures.get('player1').frames);
-            console.log('Player 2 texture data:', this.textures.get('player2').frames);
+                // Auto-start the fight sequence after a short delay
+                this.time.delayedCall(1000, () => {
+                    this.startFightSequence();
+                });
+
+                // Configure damage number style
+                this.damageNumberConfig = {
+                    fontSize: {
+                        damage: '64px',
+                        text: '52px'
+                    },
+                    fontFamily: 'Bokor',
+                    duration: 1500,
+                    rise: 200,
+                    colors: {
+                        damage: '#ff0000',
+                        block: '#6666ff',
+                        dodge: '#66ffff',
+                        miss: '#ffffff',
+                        counter: '#66ff66'
+                    }
+                };
+
+                // Load fonts before creating text
+                WebFont.load({
+                    google: {
+                        families: ['Bokor']
+                    },
+                    active: () => {
+                        // Player labels - moved up 10px
+                        this.add.text(this.barConfig.p1x + this.barConfig.width - 5, 
+                            this.barConfig.y - this.barConfig.labelPadding - 10,  // Added extra 10px up
+                            'PLAYER 1', 
+                            {
+                                fontFamily: 'Bokor',
+                                fontSize: '32px',
+                                color: '#ffffff',
+                                stroke: '#000000',
+                                strokeThickness: 4
+                            }
+                        )
+                        .setOrigin(1, 0)
+                        .setDepth(98);
+
+                        this.add.text(this.barConfig.p2x + 5, 
+                            this.barConfig.y - this.barConfig.labelPadding - 10,  // Added extra 10px up
+                            'PLAYER 2', 
+                            {
+                                fontFamily: 'Bokor',
+                                fontSize: '32px',
+                                color: '#ffffff',
+                                stroke: '#000000',
+                                strokeThickness: 4
+                            }
+                        )
+                        .setOrigin(0, 0)
+                        .setDepth(98);
+                    }
+                });
+
+                // Add R key for reset with proper configuration
+                this.rKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
+                
+                // Initialize fight sequence flag
+                this.isFightSequencePlaying = false;
+            } catch (error) {
+                console.error('Error loading combat data:', error);
+            }
         } catch (error) {
             console.error('Error in create method:', error);
         }
+        this.animator = new CombatAnimator(this);
+        console.log('Animator created:', this.animator); // Debug log
+        
+        this.sequenceHandler = new CombatSequenceHandler(this);
+        
+        this.victoryHandler = new VictoryHandler(this);
+        console.log('Victory Handler created:', this.victoryHandler); // Debug log
+        
+        // Remove any existing listeners first
+        this.events.removeListener('fightComplete');
+        
+        this.events.once('fightComplete', () => {
+            console.log('FightComplete event triggered'); // Debug log
+            const winningPlayerId = this.combatData.winner;
+            console.log('Winner ID:', winningPlayerId); // Debug log
+            
+            if (!this.victoryHandler) {
+                console.error('No victory handler!');
+                return;
+            }
+            
+            if (!this.animator) {
+                console.error('No animator!');
+                return;
+            }
+            
+            console.log('Calling handleVictory with:', {
+                winningPlayerId,
+                player1: this.player,
+                player2: this.player2,
+                hasAnimator: !!this.animator
+            });
+            
+            this.victoryHandler.handleVictory(winningPlayerId, this.player, this.player2);
+        });
     }
 
     update() {
@@ -386,12 +412,12 @@ export default class FightScene extends Phaser.Scene {
         if (!this.player || !this.player2) return;
 
         // Dynamic depth adjustment based on who's attacking
-        if (this.player.anims.currentAnim?.key === 'attacking' ||
-            this.player.anims.currentAnim?.key === 'blocking') {
+        if (this.player.anims?.currentAnim?.key === 'attacking' ||
+            this.player.anims?.currentAnim?.key === 'blocking') {
             this.player.setDepth(6);
             this.player2.setDepth(5);
-        } else if (this.player2.anims.currentAnim?.key === 'attacking2' ||
-                   this.player2.anims.currentAnim?.key === 'blocking2') {
+        } else if (this.player2.anims?.currentAnim?.key === 'attacking2' ||
+                   this.player2.anims?.currentAnim?.key === 'blocking2') {
             this.player2.setDepth(6);
             this.player.setDepth(5);
         } else {
@@ -411,13 +437,15 @@ export default class FightScene extends Phaser.Scene {
             return;
         }
 
+        console.log('Fight sequence started');
         this.isFightSequencePlaying = true;
         
         // Start countdown sequence
         this.startCountdown().then(() => {
+            console.log('Countdown finished, starting combat');
             // Initial run to center
-            this.player.play('running');
-            this.player2.play('running2');
+            this.animator.playAnimation(this.player, 'running');
+            this.animator.playAnimation(this.player2, 'running', true);
 
             // Move players to center
             const moveToCenter = [
@@ -426,7 +454,7 @@ export default class FightScene extends Phaser.Scene {
                     x: this.centerX - 75,
                     duration: 1000,
                     onComplete: () => {
-                        this.player.play('idle');
+                        this.animator.playAnimation(this.player, 'idle');
                     }
                 }),
                 this.tweens.add({
@@ -434,7 +462,16 @@ export default class FightScene extends Phaser.Scene {
                     x: this.centerX + 75,
                     duration: 1000,
                     onComplete: () => {
-                        this.player2.play('idle2');
+                        this.animator.playAnimation(this.player2, 'idle', true);
+                        // Start combat sequence after both players are in position
+                        if (this.combatData && this.combatData.actions) {
+                            console.log('Starting combat sequence');
+                            this.time.delayedCall(500, () => {
+                                this.playCombatSequence(0);  // Start from first action
+                            });
+                        } else {
+                            console.error('No combat data available');
+                        }
                     }
                 })
             ];
@@ -549,241 +586,25 @@ export default class FightScene extends Phaser.Scene {
     }
 
     playCombatSequence(actionIndex) {
+        console.log('Playing combat sequence:', actionIndex);
         const action = this.combatData.actions[actionIndex];
+        console.log('Current action:', action);
+        
         const isLastAction = actionIndex === this.combatData.actions.length - 1;
-        let animationTriggered = false;
+        
+        // Use the sequence handler
+        this.sequenceHandler.handleSequence(action, isLastAction);
 
-        // Handle Player 1's MISS + Player 2's COUNTER sequence
-        if (action.p1Result === 'MISS' && action.p2Result === 'COUNTER') {
-            animationTriggered = true;
-            // First: Player 1's missed attack and MISS text
-            this.player.play('attacking');
-            this.showDamageNumber(this.player.x, this.player.y - 50, 'Miss', 'miss');
-
-            // Handle Player 1's slash animation completion
-            this.player.once('animationcomplete', () => {
-                // Immediately start counter sequence
-                this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Counter', 'counter');
-                this.player2.play('attacking2');
-                
-                // Short delay before damage
-                this.time.delayedCall(400, () => {
-                    this.player.play('hurt');
-                    this.showDamageNumber(this.player.x, this.player.y - 50, action.p2Damage, 'damage');
-                    
-                    // Handle hurt animation completion and potential death
-                    this.player.once('animationcomplete', () => {
-                        if (isLastAction && this.combatData.winner === 2) {
-                            this.time.delayedCall(400, () => {
-                                this.player.play('dying');
-                            });
-                        } else if (!isLastAction) {
-                            this.player.play('idle');
-                        }
-                    });
+        // Listen for sequence completion
+        this.events.once('sequenceComplete', (isLast) => {
+            if (!isLast) {
+                console.log('Scheduling next action...');
+                this.time.delayedCall(this.SEQUENCE_DELAY, () => {
+                    console.log('Moving to next action:', actionIndex + 1);
+                    this.playCombatSequence(actionIndex + 1);
                 });
-
-                this.player2.once('animationcomplete', () => {
-                    this.player2.play('idle2');
-                });
-            });
-        }
-        // Handle dodge sequences - add MISS for attacker
-        else if (action.p2Result === 'DODGE') {
-            animationTriggered = true;
-            this.player.play('attacking');
-            this.showDamageNumber(this.player.x, this.player.y - 50, 'Miss', 'miss');
-            this.player2.play('dodging2');
-            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Dodge', 'dodge');
-        }
-        else if (action.p1Result === 'DODGE') {
-            animationTriggered = true;
-            this.player2.play('attacking2');
-            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
-            this.player.play('dodging');
-            this.showDamageNumber(this.player.x, this.player.y - 50, 'Dodge', 'dodge');
-        }
-        // Handle Player 2's MISS + Player 1's COUNTER sequence that ends the fight
-        else if (action.p2Result === 'MISS' && action.p1Result === 'COUNTER' && isLastAction) {
-            animationTriggered = true;
-            this.player2.play('attacking2');
-            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
-
-            this.player2.once('animationcomplete', () => {
-                // Immediately start counter sequence
-                this.showDamageNumber(this.player.x, this.player.y - 50, 'Counter', 'counter');
-                this.player.play('attacking');
-                
-                this.time.delayedCall(400, () => {
-                    this.player2.play('hurt2');
-                    this.showDamageNumber(this.player2.x, this.player2.y - 50, action.p1Damage, 'damage');
-                    
-                    // Wait for hurt animation to complete before dying
-                    this.player2.once('animationcomplete', () => {
-                        this.player2.play('dying2');
-                    });
-                });
-            });
-        }
-        // Handle regular MISS animations (not part of counter)
-        else if (action.p1Result === 'MISS' && action.p2Result !== 'DODGE' && action.p2Result !== 'BLOCK') {
-            animationTriggered = true;
-            this.player.play('attacking');
-            this.showDamageNumber(this.player.x, this.player.y - 50, 'Miss', 'miss');
-            
-            this.player.once('animationcomplete', () => {
-                this.player.play('idle');
-            });
-        }
-        else if (action.p2Result === 'MISS' && action.p1Result !== 'DODGE' && action.p1Result !== 'BLOCK') {
-            animationTriggered = true;
-            this.player2.play('attacking2');
-            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Miss', 'miss');
-            
-            this.player2.once('animationcomplete', () => {
-                this.player2.play('idle2');
-            });
-        }
-
-        // Handle Attack + Block sequence for Player 2 blocking
-        else if (action.p1Result === 'ATTACK' && action.p2Result === 'BLOCK') {
-            animationTriggered = true;
-            this.player.play('attacking');
-            this.time.delayedCall(400, () => {
-                this.player2.play('blocking2');
-                this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Block', 'block');
-            });
-        }
-        // Add new condition for Player 1 blocking
-        else if (action.p1Result === 'BLOCK' && action.p2Result === 'ATTACK') {
-            animationTriggered = true;
-            this.player2.play('attacking2');
-            this.time.delayedCall(400, () => {
-                this.player.play('blocking');
-                this.showDamageNumber(this.player.x, this.player.y - 50, 'Block', 'block');
-            });
-        }
-        // Handle regular attacks
-        else if (action.p1Result === 'ATTACK' && action.p1Damage > 0) {
-            animationTriggered = true;
-            this.player.play('attacking');
-            this.showDamageNumber(this.player.x, this.player.y - 50, 'Hit', 'miss');  // Back to normal HIT
-            this.time.delayedCall(400, () => {
-                this.showDamageNumber(this.player2.x, this.player2.y - 50, action.p1Damage, 'damage');
-                this.player2.play('hurt2');
-            });
-        }
-        else if (action.p2Result === 'ATTACK' && action.p2Damage > 0) {
-            animationTriggered = true;
-            this.player2.play('attacking2');
-            this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Hit', 'miss');  // Back to normal HIT
-            this.time.delayedCall(400, () => {
-                this.showDamageNumber(this.player.x, this.player.y - 50, action.p2Damage, 'damage');
-                this.player.play('hurt');
-            });
-        }
-
-        // After the existing MISS + COUNTER sequence...
-        else if (action.p1Result === 'CRIT' && action.p2Result === 'HIT') {
-            animationTriggered = true;
-            this.player.play('attacking');
-            this.showDamageNumber(this.player.x, this.player.y - 100, 'Critical!', 'counter');
-            
-            this.time.delayedCall(400, () => {
-                this.player2.play('hurt2');
-                this.showDamageNumber(this.player2.x, this.player2.y - 50, action.p1Damage, 'damage');
-            });
-        }
-        // Add PARRY handling
-        else if (action.p1Result === 'ATTACK' && action.p2Result === 'PARRY') {
-            animationTriggered = true;
-            this.player.play('attacking');
-            this.time.delayedCall(400, () => {
-                this.player2.play('blocking2'); // Using block animation for parry for now
-                this.showDamageNumber(this.player2.x, this.player2.y - 50, 'Parry', 'block');
-            });
-        }
-        // Add RIPOSTE handling
-        else if (action.p2Result === 'RIPOSTE' || action.p2Result === 'RIPOSTE_CRIT') {
-            if (!animationTriggered) {
-                this.showDamageNumber(this.player2.x, this.player2.y - 100, 'Riposte!', 'counter');
-                if (action.p2Result === 'RIPOSTE_CRIT') {
-                    this.time.delayedCall(200, () => {
-                        this.showDamageNumber(this.player2.x, this.player2.y - 150, 'Critical!', 'counter');
-                    });
-                }
-                this.player2.play('attacking2');
-                
-                this.time.delayedCall(400, () => {
-                    this.player.play('hurt');
-                    this.showDamageNumber(this.player.x, this.player.y - 50, action.p2Damage, 'damage');
-                });
-            }
-        }
-        // Add COUNTER_CRIT handling
-        else if (action.p2Result === 'COUNTER_CRIT') {
-            if (!animationTriggered) {
-                this.showDamageNumber(this.player2.x, this.player2.y - 100, 'Counter!', 'counter');
-                this.time.delayedCall(200, () => {
-                    this.showDamageNumber(this.player2.x, this.player2.y - 150, 'Critical!', 'counter');
-                });
-                this.player2.play('attacking2');
-                
-                this.time.delayedCall(400, () => {
-                    this.player.play('hurt');
-                    this.showDamageNumber(this.player.x, this.player.y - 50, action.p2Damage, 'damage');
-                });
-            }
-        }
-
-        // If no animation was triggered, show the ??? symbol
-        if (!animationTriggered) {
-            console.warn('Unknown combat sequence:', action);
-            this.showDamageNumber(this.cameras.main.centerX, this.cameras.main.centerY - 50, '???', 'miss');
-        }
-
-        // Handle animation completion for both players
-        this.player.once('animationcomplete', () => {
-            if (isLastAction && this.combatData.winner === 2 && action.p1Result !== 'COUNTER') {
-                this.player.play('dying');
-            } else if (this.player.anims.currentAnim.key !== 'dying') {
-                this.player.play('idle');
             }
         });
-
-        this.player2.once('animationcomplete', () => {
-            if (isLastAction && this.combatData.winner === 1 && action.p2Result !== 'MISS') {
-                this.player2.play('dying2');
-            } else if (this.player2.anims.currentAnim.key !== 'dying2') {
-                this.player2.play('idle2');
-            }
-        });
-
-        // Continue to next action
-        if (!isLastAction) {
-            const delay = (action.p2Result === 'BLOCK' || action.p1Result === 'COUNTER' || 
-                          action.p2Result === 'COUNTER' || action.p1Result === 'BLOCK')
-                ? this.SEQUENCE_DELAY + this.COUNTER_DELAY 
-                : this.SEQUENCE_DELAY;
-            this.time.delayedCall(delay, () => {
-                this.playCombatSequence(actionIndex + 1);
-            });
-        }
-
-        // Add this at the end of the last action
-        if (isLastAction) {
-            // Wait a bit after death animation
-            this.time.delayedCall(1500, () => {
-                // Player 1 wins
-                if (this.combatData.winner === 1) {
-                    this.startVictorySequence(this.player, 'player1');
-                }
-                // Player 2 wins
-                else if (this.combatData.winner === 2) {
-                    this.startVictorySequence(this.player2, 'player2');
-                }
-            });
-        }
     }
 
     startVictorySequence(winner, playerType) {
@@ -800,11 +621,7 @@ export default class FightScene extends Phaser.Scene {
             winner.setFlipX(!isPlayer2);
             
             // Use the existing walking animation configuration
-            winner.play({
-                key: 'walking' + suffix,
-                // The frameRate and repeat are already configured in createPlayerAnimations
-                // so we don't need to specify them here
-            });
+            this.animator.playAnimation(winner, 'walking', isPlayer2);
             
             const sequence = [
                 {
@@ -818,11 +635,11 @@ export default class FightScene extends Phaser.Scene {
                     x: halfwayPoint,
                     duration: 800,
                     onStart: () => {
-                        winner.play('dodging' + suffix);
+                        this.animator.playAnimation(winner, 'dodging', isPlayer2);
                     },
                     onComplete: () => {
                         // Resume walking animation using existing configuration
-                        winner.play('walking' + suffix);
+                        this.animator.playAnimation(winner, 'walking', isPlayer2);
                     }
                 },
                 {
@@ -831,7 +648,7 @@ export default class FightScene extends Phaser.Scene {
                     duration: walkDuration/2,
                     ease: 'Linear',
                     onComplete: () => {
-                        winner.play('idle' + suffix);
+                        this.animator.playAnimation(winner, 'idle', isPlayer2);
                         this.time.delayedCall(500, () => {
                             this.playTauntSequence(winner, suffix);
                         });
@@ -848,20 +665,20 @@ export default class FightScene extends Phaser.Scene {
     // Simplified taunt sequence
     playTauntSequence(winner, suffix, count = 0) {
         if (count >= 3) {
-            winner.play('idle' + suffix);
+            this.animator.playAnimation(winner, 'idle', suffix === '2');
             return;
         }
 
-        winner.play('taunting' + suffix);
+        this.animator.playAnimation(winner, 'taunting', suffix === '2');
         winner.once('animationcomplete', () => {
-            winner.play('idle' + suffix);
+            this.animator.playAnimation(winner, 'idle', suffix === '2');
             this.time.delayedCall(800, () => {
                 this.playTauntSequence(winner, suffix, count + 1);
             });
         });
     }
 
-    showDamageNumber(x, y, value, type = 'damage') {
+    showDamageNumber(x, y, value, type = 'damage', scale = 1.0) {
         const color = this.damageNumberConfig.colors[type];
         const fontSize = typeof value === 'number' 
             ? this.damageNumberConfig.fontSize.damage 
@@ -876,7 +693,8 @@ export default class FightScene extends Phaser.Scene {
             fontStyle: 'bold'
         })
         .setOrigin(0.5, 0.5)
-        .setDepth(100);
+        .setDepth(100)
+        .setScale(scale);
 
         // Add rise-and-fade animation
         this.tweens.add({
@@ -928,22 +746,17 @@ export default class FightScene extends Phaser.Scene {
 
     updateStaminaBars() {
         // Player 1 stamina (depleting left to right)
-        const p1StaminaWidth = Math.floor(this.barConfig.textureWidth * (this.p1Bars.stamina / 100));
-        this.p1Bars.staminaFill.setCrop(
-            this.barConfig.textureWidth - p1StaminaWidth,
-            0,
-            p1StaminaWidth,
-            this.barConfig.textureHeight
-        ).setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight);
+        const currentAction = this.combatData.actions[this.currentActionIndex];
+        if (currentAction) {
+            this.p1Bars.stamina -= currentAction.p1StaminaLost;
+            this.p2Bars.stamina -= currentAction.p2StaminaLost;
+        }
 
-        // Player 2 stamina (depleting right to left)
+        // Update the stamina bar displays
+        const p1StaminaWidth = Math.floor(this.barConfig.textureWidth * (this.p1Bars.stamina / 100));
         const p2StaminaWidth = Math.floor(this.barConfig.textureWidth * (this.p2Bars.stamina / 100));
-        this.p2Bars.staminaFill.setCrop(
-            0,
-            0,
-            p2StaminaWidth,
-            this.barConfig.textureHeight
-        ).setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight);
+        
+        // Rest of the stamina bar update logic...
     }
 
     // Add a proper reset method
@@ -955,8 +768,8 @@ export default class FightScene extends Phaser.Scene {
         this.player2.x = this.player2StartX;
         
         // Reset animations
-        this.player.play('idle');
-        this.player2.play('idle2');
+        this.animator.playAnimation(this.player, 'idle');
+        this.animator.playAnimation(this.player2, 'idle', true);
         
         // Clear any ongoing tweens
         this.tweens.killAll();
@@ -973,7 +786,7 @@ export default class FightScene extends Phaser.Scene {
 
         const playNextAnimation = (animations) => {
             if (animations.length === 0) {
-                player.play('idle' + suffix);
+                this.animator.playAnimation(player, 'idle', suffix === '2');
                 player.isPlayingOneShot = false;
                 return;
             }
@@ -985,10 +798,10 @@ export default class FightScene extends Phaser.Scene {
             const currentAnimKey = currentAnim + suffix;
             const walkingAnimKey = 'walking' + suffix;
 
-            player.play(currentAnimKey);
+            this.animator.playAnimation(player, currentAnimKey, suffix === '2');
             player.once('animationcomplete', () => {
                 // Use walking animation with correct suffix
-                player.play(walkingAnimKey);
+                this.animator.playAnimation(player, walkingAnimKey, suffix === '2');
                 player.scene.time.delayedCall(200, () => {
                     playNextAnimation(remainingAnims);
                 });
@@ -997,6 +810,46 @@ export default class FightScene extends Phaser.Scene {
 
         // Start the sequence
         playNextAnimation(['attacking', 'blocking', 'dodging']);
+    }
+
+    initializePlayers() {
+        // Example setup for player1
+        this.player1 = this.add.sprite(100, 100, 'player1SpriteKey');
+        this.anims.create({
+            key: 'attackAnimation',
+            frames: this.anims.generateFrameNumbers('player1SpriteKey', { start: 0, end: 5 }),
+            frameRate: 10,
+            repeat: -1
+        });
+        this.player1.anims.load('attackAnimation');
+        
+        // Ensure player2 is set up similarly
+        // ... existing player2 setup ...
+    }
+
+    startVictoryLap(winner, isPlayer2) {
+        console.log('Starting victory lap for', isPlayer2 ? 'Player 2' : 'Player 1');
+        
+        // Play victory animation
+        winner.play('victory');
+        
+        // After victory animation, start walking
+        winner.once('animationcomplete', () => {
+            console.log('Victory animation complete, starting walk');
+            winner.play('walking');
+            
+            // Move the winner across the screen
+            this.tweens.add({
+                targets: winner,
+                x: isPlayer2 ? -100 : this.game.config.width + 100,
+                duration: 2000,
+                ease: 'Linear',
+                onComplete: () => {
+                    console.log('Victory lap complete');
+                    this.events.emit('victoryComplete');
+                }
+            });
+        });
     }
 }
 

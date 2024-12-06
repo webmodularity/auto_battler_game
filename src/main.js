@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import BootScene from './scenes/BootScene';
 import TitleScene from './scenes/TitleScene';
 import FightScene from './scenes/FightScene';
+//import NewFightScene from './scenes/NewFightScene';
 
 const config = {
     type: Phaser.AUTO,

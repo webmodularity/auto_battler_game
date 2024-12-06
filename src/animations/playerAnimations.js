@@ -1,3 +1,5 @@
+import { CombatResultType } from '../utils/combatDecoder';
+
 // Define valid animations and their properties
 export const VALID_ANIMATIONS = {
     idle: { repeat: true },
@@ -9,6 +11,19 @@ export const VALID_ANIMATIONS = {
     hurt: { repeat: false },
     dodging: { repeat: false },
     taunting: { repeat: false }
+};
+
+// Update the combat result mapping to match actual combat results
+export const COMBAT_RESULT_TO_ANIMATION = {
+    'DODGE': 'dodging',
+    'HIT': 'hurt',
+    'BLOCK': 'blocking',
+    'PARRY': 'blocking',
+    'COUNTER': 'blocking',
+    'RIPOST': 'blocking',
+    'MISS': null,
+    'ATTACK': 'attacking',
+    'CRIT': 'attacking'
 };
 
 // Create animations for a sprite

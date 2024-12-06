@@ -42,8 +42,6 @@ export default class BootScene extends Phaser.Scene {
             progressBox.destroy();
             loadingText.destroy();
             percentText.destroy();
-            
-            this.scene.start('TitleScene');
         });
 
         // Load assets

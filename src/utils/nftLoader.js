@@ -56,6 +56,15 @@ const erc721ABI = [{
     outputs: [{ name: '', type: 'string' }]
 }];
 
+// Add new ABI at the top with other ABIs
+const gameABI = [{
+    name: 'playerContract',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }]
+}];
+
 // Format network name for URL (e.g., "shape-sepolia" -> "shape-sepolia")
 const getAlchemyNetwork = (networkName) => {
     return networkName.toLowerCase(); // ensure lowercase
@@ -77,9 +86,16 @@ export async function loadCharacterData(playerId) {
             transport
         });
 
-        // Get player stats first
+        // Get player contract address from game contract
+        const playerContractAddress = await client.readContract({
+            address: import.meta.env.VITE_GAME_CONTRACT_ADDRESS,
+            abi: gameABI,
+            functionName: 'playerContract'
+        });
+
+        // Update player stats call with new address
         const playerStats = await client.readContract({
-            address: import.meta.env.VITE_PLAYER_CONTRACT_ADDRESS,
+            address: playerContractAddress,
             abi: playerABI,
             functionName: 'getPlayer',
             args: [BigInt(playerId)]
@@ -99,9 +115,9 @@ export async function loadCharacterData(playerId) {
             surnameIndex: Number(playerStats.surnameIndex)
         };
 
-        // Get skin registry address
+        // Update skin registry call with new address
         const skinRegistryAddress = await client.readContract({
-            address: import.meta.env.VITE_PLAYER_CONTRACT_ADDRESS,
+            address: playerContractAddress,
             abi: playerABI,
             functionName: 'skinRegistry'
         });

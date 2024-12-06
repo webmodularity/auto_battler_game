@@ -2,6 +2,7 @@ import * as Phaser from 'phaser';
 import WebFont from 'webfontloader';
 import { createPlayerAnimations } from '../animations/playerAnimations';
 import { loadCharacterData } from '../utils/nftLoader';
+import { CombatAnimator } from '../combat/combatAnimator';
 
 export default class TitleScene extends Phaser.Scene {
     constructor() {
@@ -10,9 +11,15 @@ export default class TitleScene extends Phaser.Scene {
         this.playerSpeed = 2;
         this.BACKGROUND_WIDTH = 1920;
         this.BACKGROUND_HEIGHT = 1080;
+        this.animator = null;
+    }
+
+    init() {
+        // console.log('TitleScene: Init called');
     }
 
     preload() {
+        // console.log('TitleScene: Preload called');
         this.load.image('sky', 'assets/backgrounds/parallax-mountain/sky.png');
         this.load.image('bg-decor', 'assets/backgrounds/parallax-mountain/bg-decor.png');
         this.load.image('middle-decor', 'assets/backgrounds/parallax-mountain/middle-decor.png');
@@ -182,27 +189,25 @@ export default class TitleScene extends Phaser.Scene {
             }
         });
 
-        // Start with idle animation
-        this.player.play('idle');
-
-        // Add these debug lines
-        console.log('Current animation frames:', this.player.anims.currentAnim?.frames);
-        console.log('Available frame names:', this.textures.get(playerKey).getFrameNames());
-
-        // Add this debug line
-        const frame = this.textures.get('player1').get('idle_000.png');
-        console.log('Frame dimensions:', frame.width, frame.height);
+        // Initialize the animator after player creation
+        this.animator = new CombatAnimator(this);
+        
+        // Replace direct animation calls with animator methods
+        this.animator.setupAnimationComplete(this.player);
+        
+        // Start with idle animation using animator
+        this.animator.playAnimation(this.player, 'idle');
     }
 
     update() {
         const MOVE_SPEED = 2;
-        const DODGE_SPEED = 4;  // Speed for dodge sliding
+        const DODGE_SPEED = 4;
 
-        // Only process movement and new animations if we're not in a one-shot animation
-        if (!this.isPlayingOneShot) {
+        // Use animator's check for one-shot animations
+        if (this.animator.canPlayAnimation()) {
             if (this.cursors.left.isDown) {
                 this.player.setFlipX(true);
-                this.player.play('running', true);
+                this.animator.playAnimation(this.player, 'running');
                 
                 const nextX = this.player.x - MOVE_SPEED;
                 if (nextX >= this.worldBounds.playerLeft) {
@@ -213,7 +218,7 @@ export default class TitleScene extends Phaser.Scene {
             }
             else if (this.cursors.right.isDown) {
                 this.player.setFlipX(false);
-                this.player.play('running', true);
+                this.animator.playAnimation(this.player, 'running');
                 
                 const nextX = this.player.x + MOVE_SPEED;
                 if (nextX <= this.worldBounds.playerRight) {
@@ -242,14 +247,11 @@ export default class TitleScene extends Phaser.Scene {
                 }
             }
             else if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
-                this.player.play('attacking', true);
-                this.isPlayingOneShot = true;
+                this.animator.playOneShotAnimation(this.player, 'attacking');
             }
 
-            // Check for dodge (down arrow) regardless of running state
             if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
-                this.player.play('dodging', true);
-                this.isPlayingOneShot = true;
+                this.animator.playOneShotAnimation(this.player, 'dodging');
                 
                 // Determine direction based on either current running direction or facing direction
                 let direction;
@@ -285,17 +287,13 @@ export default class TitleScene extends Phaser.Scene {
                     }
                 });
             }
-            // Only play idle if we're not dodging and not moving
             else if (!this.cursors.left.isDown && !this.cursors.right.isDown) {
-                // If no movement keys are pressed and we're not in a one-shot animation,
-                // and we're currently running, switch back to idle
                 if (this.player.anims.currentAnim && 
                     this.player.anims.currentAnim.key === 'running') {
-                    this.player.play('idle', true);
+                    this.animator.playAnimation(this.player, 'idle');
                 }
-                // If no animation is playing, also go back to idle
                 else if (!this.player.anims.isPlaying) {
-                    this.player.play('idle', true);
+                    this.animator.playAnimation(this.player, 'idle');
                 }
             }
         }
