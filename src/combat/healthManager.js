@@ -19,6 +19,15 @@ export class HealthManager {
         };
         this.p1Bars = null;
         this.p2Bars = null;
+
+        // Add tweening properties
+        this.tweens = {
+            p1Health: null,
+            p2Health: null,
+            p1Stamina: null,
+            p2Stamina: null,
+            duration: 500 // Duration of health/stamina change animation
+        };
     }
 
     createBars() {
@@ -35,14 +44,14 @@ export class HealthManager {
             p2MaxEndurance
         });
 
-        // Player 1 bars (right-aligned stamina, nudged left)
+        // Player 1 bars (right-aligned, white accent on left)
         this.p1Bars = {
             healthBg: this.scene.add.image(this.barConfig.p1x, this.barConfig.y, 'bar-bg')
                 .setOrigin(0, 0)
                 .setDepth(98)
                 .setDisplaySize(this.barConfig.width, this.barConfig.height),
-            healthFill: this.scene.add.image(this.barConfig.p1x, this.barConfig.y, 'bar-fill-2')
-                .setOrigin(0, 0)
+            healthFill: this.scene.add.image(this.barConfig.p1x + this.barConfig.width, this.barConfig.y, 'bar-fill-2')
+                .setOrigin(1, 0)
                 .setDepth(100)
                 .setDisplaySize(this.barConfig.width, this.barConfig.height),
             staminaBg: this.scene.add.image(
@@ -54,11 +63,11 @@ export class HealthManager {
                 .setDepth(98)
                 .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
             staminaFill: this.scene.add.image(
-                (this.barConfig.p1x + this.barConfig.width - this.barConfig.staminaWidth) - this.barConfig.nudgeFactor,
+                this.barConfig.p1x + this.barConfig.width - this.barConfig.nudgeFactor,
                 this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
                 'bar-fill-1'
             )
-                .setOrigin(0, 0)
+                .setOrigin(1, 0)
                 .setDepth(100)
                 .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
             health: p1MaxHealth,
@@ -67,7 +76,7 @@ export class HealthManager {
             maxStamina: p1MaxEndurance
         };
 
-        // Player 2 bars (left-aligned stamina, nudged right)
+        // Player 2 bars (left-aligned, white accent on right)
         this.p2Bars = {
             healthBg: this.scene.add.image(this.barConfig.p2x, this.barConfig.y, 'bar-bg')
                 .setOrigin(0, 0)
@@ -142,41 +151,71 @@ export class HealthManager {
     }
 
     updateBars(p1Health, p2Health, p1Stamina, p2Stamina) {
-        console.log('HealthManager raw values:', {
-            p1: {
-                health: p1Health,
-                maxHealth: this.p1Bars.maxHealth,
-                stamina: p1Stamina,
-                maxStamina: this.p1Bars.maxStamina
-            },
-            p2: {
-                health: p2Health,
-                maxHealth: this.p2Bars.maxHealth,
-                stamina: p2Stamina,
-                maxStamina: this.p2Bars.maxStamina
-            }
+        // Store target values
+        const targetValues = {
+            p1Health,
+            p2Health,
+            p1Stamina,
+            p2Stamina
+        };
+
+        // Stop any existing tweens
+        if (this.tweens.p1Health) this.tweens.p1Health.stop();
+        if (this.tweens.p2Health) this.tweens.p2Health.stop();
+        if (this.tweens.p1Stamina) this.tweens.p1Stamina.stop();
+        if (this.tweens.p2Stamina) this.tweens.p2Stamina.stop();
+
+        // Create tweens for smooth transitions
+        this.tweens.p1Health = this.scene.tweens.add({
+            targets: this.p1Bars,
+            health: targetValues.p1Health,
+            duration: this.tweens.duration,
+            ease: 'Power2',
+            onUpdate: () => this.updateBarDisplays()
         });
 
-        // Store the actual values
-        this.p1Bars.health = p1Health;
-        this.p2Bars.health = p2Health;
-        this.p1Bars.stamina = p1Stamina;
-        this.p2Bars.stamina = p2Stamina;
+        this.tweens.p2Health = this.scene.tweens.add({
+            targets: this.p2Bars,
+            health: targetValues.p2Health,
+            duration: this.tweens.duration,
+            ease: 'Power2',
+            onUpdate: () => this.updateBarDisplays()
+        });
 
-        // Calculate the actual width for health bars (should be full width if health = maxHealth)
-        const p1HealthWidth = this.barConfig.width * (p1Health / this.p1Bars.maxHealth);
-        const p2HealthWidth = this.barConfig.width * (p2Health / this.p2Bars.maxHealth);
-        
-        // Calculate the actual width for stamina bars
-        const p1StaminaWidth = this.barConfig.width * (p1Stamina / this.p1Bars.maxStamina);
-        const p2StaminaWidth = this.barConfig.width * (p2Stamina / this.p2Bars.maxStamina);
+        this.tweens.p1Stamina = this.scene.tweens.add({
+            targets: this.p1Bars,
+            stamina: targetValues.p1Stamina,
+            duration: this.tweens.duration,
+            ease: 'Power2',
+            onUpdate: () => this.updateBarDisplays()
+        });
 
-        // Update health bar displays
+        this.tweens.p2Stamina = this.scene.tweens.add({
+            targets: this.p2Bars,
+            stamina: targetValues.p2Stamina,
+            duration: this.tweens.duration,
+            ease: 'Power2',
+            onUpdate: () => this.updateBarDisplays()
+        });
+    }
+
+    // New method to handle the actual bar updates
+    updateBarDisplays() {
+        // Calculate the actual widths
+        const p1HealthWidth = this.barConfig.width * (this.p1Bars.health / this.p1Bars.maxHealth);
+        const p2HealthWidth = this.barConfig.width * (this.p2Bars.health / this.p2Bars.maxHealth);
+        const p1StaminaWidth = this.barConfig.staminaWidth * (this.p1Bars.stamina / this.p1Bars.maxStamina);
+        const p2StaminaWidth = this.barConfig.staminaWidth * (this.p2Bars.stamina / this.p2Bars.maxStamina);
+
+        // Update Player 1 bars (right-aligned, drains right-to-left)
+        this.p1Bars.healthFill.setX(this.barConfig.p1x + this.barConfig.width);
         this.p1Bars.healthFill.displayWidth = p1HealthWidth;
-        this.p2Bars.healthFill.displayWidth = p2HealthWidth;
-
-        // Update stamina bar displays
+        
+        this.p1Bars.staminaFill.setX(this.barConfig.p1x + this.barConfig.width - this.barConfig.nudgeFactor);
         this.p1Bars.staminaFill.displayWidth = p1StaminaWidth;
+
+        // Update Player 2 bars (left-aligned, drains left-to-right)
+        this.p2Bars.healthFill.displayWidth = p2HealthWidth;
         this.p2Bars.staminaFill.displayWidth = p2StaminaWidth;
     }
 }

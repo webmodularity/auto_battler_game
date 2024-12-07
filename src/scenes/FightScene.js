@@ -15,7 +15,7 @@ export default class FightScene extends Phaser.Scene {
         this.SEQUENCE_DELAY = 1500;
         this.COUNTER_DELAY = 750;
         this.INITIAL_DELAY = 500;
-        this.USE_DEBUG = true;
+        this.USE_DEBUG = false;
 
         // UI Configurations
         this.countdownConfig = {

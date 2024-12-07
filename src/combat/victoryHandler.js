@@ -3,6 +3,8 @@ export class VictoryHandler {
         this.scene = scene;
         this.animator = scene.animator;
         this.VICTORY_DELAY = 1000;
+        this.WALK_DISTANCE = 100;
+        this.WALK_DURATION = 1000;
     }
 
     handleVictory(winner, player1, player2) {
@@ -23,7 +25,7 @@ export class VictoryHandler {
         // Play dying animation for loser
         this.animator.playAnimation(loser, 'dying', !isPlayer2);
 
-        // First add Victory text (moved up 50px from -40 to -90)
+        // First add Victory text
         const victoryText = this.scene.add.text(
             this.scene.cameras.main.centerX,
             this.scene.cameras.main.centerY - 90,
@@ -48,7 +50,7 @@ export class VictoryHandler {
             duration: 1000,
             ease: 'Power1',
             onComplete: () => {
-                // After Victory text is in, add Player text (also moved up 50px from +40 to -10)
+                // After Victory text is in, add Player text
                 const playerText = this.scene.add.text(
                     this.scene.cameras.main.centerX,
                     this.scene.cameras.main.centerY - 10,
@@ -80,24 +82,45 @@ export class VictoryHandler {
             }
         });
 
-        let tauntCount = 0;
-        const MAX_TAUNTS = 7;
-
+        // After victory delay, turn and walk away, then taunt
         this.scene.time.delayedCall(this.VICTORY_DELAY, () => {
-            const playTaunt = () => {
-                this.animator.playAnimation(winner, 'taunting', isPlayer2);
-                
-                winner.once('animationcomplete', () => {
-                    tauntCount++;
-                    if (tauntCount < MAX_TAUNTS) {
-                        playTaunt();
-                    } else {
-                        this.animator.playAnimation(winner, 'idle', isPlayer2);
-                    }
-                });
-            };
+            // Turn away from opponent
+            winner.setFlipX(!isPlayer2);
+            
+            // Play walking animation
+            this.animator.playAnimation(winner, 'walking', isPlayer2);
+            
+            // Walk away from opponent
+            this.scene.tweens.add({
+                targets: winner,
+                x: winner.x + (isPlayer2 ? this.WALK_DISTANCE : -this.WALK_DISTANCE),
+                duration: this.WALK_DURATION,
+                ease: 'Linear',
+                onComplete: () => {
+                    // After walking away, start taunting sequence
+                    this.playTauntSequence(winner, isPlayer2);
+                }
+            });
+        });
+    }
 
-            playTaunt();
+    playTauntSequence(winner, isPlayer2, tauntCount = 0) {
+        const MAX_TAUNTS = 7;
+        
+        if (tauntCount >= MAX_TAUNTS) {
+            this.animator.playAnimation(winner, 'idle', isPlayer2);
+            return;
+        }
+
+        this.animator.playAnimation(winner, 'taunting', isPlayer2);
+        
+        winner.once('animationcomplete', () => {
+            tauntCount++;
+            if (tauntCount < MAX_TAUNTS) {
+                this.playTauntSequence(winner, isPlayer2, tauntCount);
+            } else {
+                this.animator.playAnimation(winner, 'idle', isPlayer2);
+            }
         });
     }
 } 
