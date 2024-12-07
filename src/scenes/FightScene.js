@@ -5,6 +5,7 @@ import { CombatAnimator } from '../combat/combatAnimator';
 import { CombatSequenceHandler } from '../combat/combatSequenceHandler';
 import { VictoryHandler } from '../combat/victoryHandler';
 import { HealthManager } from '../combat/healthManager';
+import { DebugHealthManager } from '../combat/debugHealthManager';
 import { DamageNumbers } from '../ui/damageNumbers';
 
 export default class FightScene extends Phaser.Scene {
@@ -14,6 +15,7 @@ export default class FightScene extends Phaser.Scene {
         this.SEQUENCE_DELAY = 1500;
         this.COUNTER_DELAY = 750;
         this.INITIAL_DELAY = 500;
+        this.USE_DEBUG = true;
 
         // UI Configurations
         this.countdownConfig = {
@@ -145,7 +147,7 @@ export default class FightScene extends Phaser.Scene {
         createPlayerAnimations(this, 'player2', true);
 
         // 4. Manager Initialization
-        this.healthManager = new HealthManager(this);
+        this.healthManager = this.USE_DEBUG ? new DebugHealthManager(this) : new HealthManager(this);
         this.healthManager.createBars();
         this.animator = new CombatAnimator(this);
         this.sequenceHandler = new CombatSequenceHandler(this);

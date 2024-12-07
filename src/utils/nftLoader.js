@@ -1,7 +1,7 @@
 import { Alchemy, Network } from 'alchemy-sdk';
 import { createPublicClient, http, parseAbiItem } from 'viem';
 
-// ABI for the player contract including skinRegistry
+// ABI for the player contract including skinRegistry and calculateStats
 const playerABI = [{
     name: 'getPlayer',
     type: 'function',
@@ -28,6 +28,42 @@ const playerABI = [{
     stateMutability: 'view',
     inputs: [],
     outputs: [{ name: '', type: 'address' }]
+}, {
+    name: 'calculateStats',
+    type: 'function',
+    stateMutability: 'pure',
+    inputs: [{
+        name: 'player',
+        type: 'tuple',
+        components: [
+            { name: 'strength', type: 'uint8' },
+            { name: 'constitution', type: 'uint8' },
+            { name: 'size', type: 'uint8' },
+            { name: 'agility', type: 'uint8' },
+            { name: 'stamina', type: 'uint8' },
+            { name: 'luck', type: 'uint8' },
+            { name: 'skinIndex', type: 'uint32' },
+            { name: 'skinTokenId', type: 'uint16' },
+            { name: 'firstNameIndex', type: 'uint16' },
+            { name: 'surnameIndex', type: 'uint16' }
+        ]
+    }],
+    outputs: [{
+        type: 'tuple',
+        components: [
+            { name: 'maxHealth', type: 'uint16' },
+            { name: 'damageModifier', type: 'uint16' },
+            { name: 'hitChance', type: 'uint16' },
+            { name: 'blockChance', type: 'uint16' },
+            { name: 'dodgeChance', type: 'uint16' },
+            { name: 'maxEndurance', type: 'uint16' },
+            { name: 'critChance', type: 'uint16' },
+            { name: 'initiative', type: 'uint16' },
+            { name: 'counterChance', type: 'uint16' },
+            { name: 'critMultiplier', type: 'uint16' },
+            { name: 'parryChance', type: 'uint16' }
+        ]
+    }]
 }];
 
 // ABI for the skin registry's getSkin function
@@ -101,8 +137,48 @@ export async function loadCharacterData(playerId) {
             args: [BigInt(playerId)]
         });
 
-        // Create stats object immediately
+        // After getting playerStats, calculate the derived stats
+        const calculatedStats = await client.readContract({
+            address: playerContractAddress,
+            abi: playerABI,
+            functionName: 'calculateStats',
+            args: [{
+                strength: playerStats.strength,
+                constitution: playerStats.constitution,
+                size: playerStats.size,
+                agility: playerStats.agility,
+                stamina: playerStats.stamina,
+                luck: playerStats.luck,
+                skinIndex: playerStats.skinIndex,
+                skinTokenId: playerStats.skinTokenId,
+                firstNameIndex: playerStats.firstNameIndex,
+                surnameIndex: playerStats.surnameIndex
+            }]
+        });
+
+        console.log('Player Stats:', {
+            baseStats: {
+                strength: playerStats.strength,
+                constitution: playerStats.constitution,
+                size: playerStats.size,
+                agility: playerStats.agility,
+                stamina: playerStats.stamina,
+                luck: playerStats.luck
+            },
+            calculatedStats: {
+                maxHealth: Number(calculatedStats.maxHealth),
+                maxEndurance: Number(calculatedStats.maxEndurance),
+                damageModifier: Number(calculatedStats.damageModifier),
+                hitChance: Number(calculatedStats.hitChance),
+                blockChance: Number(calculatedStats.blockChance),
+                dodgeChance: Number(calculatedStats.dodgeChance),
+                critChance: Number(calculatedStats.critChance)
+            }
+        });
+
+        // Create stats object with both base and calculated stats
         const stats = {
+            // Base stats
             strength: Number(playerStats.strength),
             constitution: Number(playerStats.constitution),
             size: Number(playerStats.size),
@@ -112,7 +188,19 @@ export async function loadCharacterData(playerId) {
             skinIndex: Number(playerStats.skinIndex),
             skinTokenId: Number(playerStats.skinTokenId),
             firstNameIndex: Number(playerStats.firstNameIndex),
-            surnameIndex: Number(playerStats.surnameIndex)
+            surnameIndex: Number(playerStats.surnameIndex),
+            // Calculated stats
+            maxHealth: Number(calculatedStats.maxHealth),
+            maxEndurance: Number(calculatedStats.maxEndurance),
+            damageModifier: Number(calculatedStats.damageModifier),
+            hitChance: Number(calculatedStats.hitChance),
+            blockChance: Number(calculatedStats.blockChance),
+            dodgeChance: Number(calculatedStats.dodgeChance),
+            critChance: Number(calculatedStats.critChance),
+            initiative: Number(calculatedStats.initiative),
+            counterChance: Number(calculatedStats.counterChance),
+            critMultiplier: Number(calculatedStats.critMultiplier),
+            parryChance: Number(calculatedStats.parryChance)
         };
 
         // Update skin registry call with new address

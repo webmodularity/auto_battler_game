@@ -22,6 +22,19 @@ export class HealthManager {
     }
 
     createBars() {
+        // Get max values from player data
+        const p1MaxHealth = this.scene.player1Data.stats.maxHealth;
+        const p2MaxHealth = this.scene.player2Data.stats.maxHealth;
+        const p1MaxEndurance = this.scene.player1Data.stats.maxEndurance;
+        const p2MaxEndurance = this.scene.player2Data.stats.maxEndurance;
+
+        console.log('Initial Health Values:', {
+            p1MaxHealth,
+            p2MaxHealth,
+            p1MaxEndurance,
+            p2MaxEndurance
+        });
+
         // Player 1 bars (right-aligned stamina, nudged left)
         this.p1Bars = {
             healthBg: this.scene.add.image(this.barConfig.p1x, this.barConfig.y, 'bar-bg')
@@ -48,8 +61,10 @@ export class HealthManager {
                 .setOrigin(0, 0)
                 .setDepth(100)
                 .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
-            health: 100,
-            stamina: 100
+            health: p1MaxHealth,
+            maxHealth: p1MaxHealth,
+            stamina: p1MaxEndurance,
+            maxStamina: p1MaxEndurance
         };
 
         // Player 2 bars (left-aligned stamina, nudged right)
@@ -78,8 +93,10 @@ export class HealthManager {
                 .setOrigin(0, 0)
                 .setDepth(100)
                 .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
-            health: 100,
-            stamina: 100
+            health: p2MaxHealth,
+            maxHealth: p2MaxHealth,
+            stamina: p2MaxEndurance,
+            maxStamina: p2MaxEndurance
         };
 
         // Load fonts and create player labels
@@ -125,50 +142,41 @@ export class HealthManager {
     }
 
     updateBars(p1Health, p2Health, p1Stamina, p2Stamina) {
+        console.log('HealthManager raw values:', {
+            p1: {
+                health: p1Health,
+                maxHealth: this.p1Bars.maxHealth,
+                stamina: p1Stamina,
+                maxStamina: this.p1Bars.maxStamina
+            },
+            p2: {
+                health: p2Health,
+                maxHealth: this.p2Bars.maxHealth,
+                stamina: p2Stamina,
+                maxStamina: this.p2Bars.maxStamina
+            }
+        });
+
+        // Store the actual values
         this.p1Bars.health = p1Health;
         this.p2Bars.health = p2Health;
         this.p1Bars.stamina = p1Stamina;
         this.p2Bars.stamina = p2Stamina;
 
-        this.updateHealthBars();
-        this.updateStaminaBars();
-    }
+        // Calculate the actual width for health bars (should be full width if health = maxHealth)
+        const p1HealthWidth = this.barConfig.width * (p1Health / this.p1Bars.maxHealth);
+        const p2HealthWidth = this.barConfig.width * (p2Health / this.p2Bars.maxHealth);
+        
+        // Calculate the actual width for stamina bars
+        const p1StaminaWidth = this.barConfig.width * (p1Stamina / this.p1Bars.maxStamina);
+        const p2StaminaWidth = this.barConfig.width * (p2Stamina / this.p2Bars.maxStamina);
 
-    updateHealthBars() {
-        const p1HealthWidth = Math.floor(this.p1Bars.healthFill.width * (this.p1Bars.health / 100));
-        const p2HealthWidth = Math.floor(this.p2Bars.healthFill.width * (this.p2Bars.health / 100));
+        // Update health bar displays
+        this.p1Bars.healthFill.displayWidth = p1HealthWidth;
+        this.p2Bars.healthFill.displayWidth = p2HealthWidth;
 
-        this.p1Bars.healthFill.setCrop(
-            this.p1Bars.healthFill.width - p1HealthWidth,
-            0,
-            p1HealthWidth,
-            this.p1Bars.healthFill.height
-        );
-
-        this.p2Bars.healthFill.setCrop(
-            0,
-            0,
-            p2HealthWidth,
-            this.p2Bars.healthFill.height
-        );
-    }
-
-    updateStaminaBars() {
-        const p1StaminaWidth = Math.floor(this.p1Bars.staminaFill.width * (this.p1Bars.stamina / 100));
-        const p2StaminaWidth = Math.floor(this.p2Bars.staminaFill.width * (this.p2Bars.stamina / 100));
-
-        this.p1Bars.staminaFill.setCrop(
-            this.p1Bars.staminaFill.width - p1StaminaWidth,
-            0,
-            p1StaminaWidth,
-            this.p1Bars.staminaFill.height
-        );
-
-        this.p2Bars.staminaFill.setCrop(
-            0,
-            0,
-            p2StaminaWidth,
-            this.p2Bars.staminaFill.height
-        );
+        // Update stamina bar displays
+        this.p1Bars.staminaFill.displayWidth = p1StaminaWidth;
+        this.p2Bars.staminaFill.displayWidth = p2StaminaWidth;
     }
 }

@@ -9,38 +9,121 @@ export class CombatSequenceHandler {
     }
 
     handleSequence(action, isLastAction) {
-        const isOffensiveAction = result => {
-            const resultStr = result.toString().toUpperCase();
-            return ['ATTACK', 'CRIT', 'EXHAUSTED'].includes(resultStr);
+        console.log('Raw Combat Action:', action);
+
+        // Get current values
+        const currentP1Health = this.scene.healthManager.p1Bars.health;
+        const currentP2Health = this.scene.healthManager.p2Bars.health;
+        const currentP1Stamina = this.scene.healthManager.p1Bars.stamina;
+        const currentP2Stamina = this.scene.healthManager.p2Bars.stamina;
+
+        // Initialize new values with current values
+        let newP1Health = currentP1Health;
+        let newP2Health = currentP2Health;
+        let newP1Stamina = Math.max(0, currentP1Stamina - (action.p1StaminaLost || 0));
+        let newP2Stamina = Math.max(0, currentP2Stamina - (action.p2StaminaLost || 0));
+
+        // Handle P2's defensive actions that deal damage
+        if (['COUNTER', 'COUNTER_CRIT', 'RIPOSTE', 'RIPOSTE_CRIT'].includes(action.p2Result)) {
+            const damage = Number(action.p2Damage);
+            newP1Health = Math.max(0, currentP1Health - damage);
+            console.log('P2 counter/riposte hit P1:', {
+                type: action.p2Result,
+                damage,
+                newP1Health
+            });
+        }
+        // If P2 gets HIT normally, apply P1's damage
+        else if (action.p2Result === 'HIT' || action.p2Result === 'CRIT') {
+            const damage = Number(action.p1Damage);
+            newP2Health = Math.max(0, currentP2Health - damage);
+        }
+
+        // Handle P1's defensive actions that deal damage
+        if (['COUNTER', 'COUNTER_CRIT', 'RIPOSTE', 'RIPOSTE_CRIT'].includes(action.p1Result)) {
+            const damage = Number(action.p1Damage);
+            newP2Health = Math.max(0, currentP2Health - damage);
+            console.log('P1 counter/riposte hit P2:', {
+                type: action.p1Result,
+                damage,
+                newP2Health
+            });
+        }
+        // If P1 gets HIT normally, apply P2's damage
+        else if (action.p1Result === 'HIT' || action.p1Result === 'CRIT') {
+            const damage = Number(action.p2Damage);
+            newP1Health = Math.max(0, currentP1Health - damage);
+        }
+
+        // Store the calculated values for the animation sequence
+        this.pendingHealthUpdate = {
+            p1Health: newP1Health,
+            p2Health: newP2Health,
+            p1Stamina: newP1Stamina,
+            p2Stamina: newP2Stamina
         };
 
-        if (isOffensiveAction(action.p2Result)) {
-            this.playAttackSequence(
-                this.scene.player2,   // attacker
-                this.scene.player,    // defender
-                action.p2Result,      // attack type
-                action.p2Damage,      // attack damage
-                action.p1Result,      // defense type
-                true,                // is player 2
-                isLastAction
+        console.log('Final health update:', {
+            p1: { 
+                oldHealth: currentP1Health, 
+                newHealth: newP1Health,
+                oldStamina: currentP1Stamina,
+                newStamina: newP1Stamina,
+                staminaLost: action.p1StaminaLost,
+                result: action.p1Result,
+                incomingDamage: action.p2Damage
+            },
+            p2: { 
+                oldHealth: currentP2Health, 
+                newHealth: newP2Health,
+                oldStamina: currentP2Stamina,
+                newStamina: newP2Stamina,
+                staminaLost: action.p2StaminaLost,
+                result: action.p2Result,
+                incomingDamage: action.p1Damage
+            }
+        });
+
+        // Update the health bars with actual values after a longer delay
+        this.scene.time.delayedCall(1200, () => {
+            this.scene.healthManager.updateBars(
+                newP1Health,
+                newP2Health,
+                newP1Stamina,
+                newP2Stamina
             );
-        } else if (isOffensiveAction(action.p1Result)) {
+        });
+
+        // Continue with animation sequence
+        if (this.isOffensiveAction(action.p2Result)) {
             this.playAttackSequence(
-                this.scene.player,    // attacker
-                this.scene.player2,   // defender
-                action.p1Result,      // attack type
-                action.p1Damage,      // attack damage
-                action.p2Result,      // defense type
-                false,               // is not player 2
-                isLastAction
+                this.scene.player2,
+                this.scene.player,
+                action.p2Result,
+                action.p2Damage,
+                action.p1Result,
+                true,
+                isLastAction,
+                action
+            );
+        } else if (this.isOffensiveAction(action.p1Result)) {
+            this.playAttackSequence(
+                this.scene.player,
+                this.scene.player2,
+                action.p1Result,
+                action.p1Damage,
+                action.p2Result,
+                false,
+                isLastAction,
+                action
             );
         }
     }
 
-    playAttackSequence(attacker, defender, attackType, damage, defenseType, isPlayer2, isLastAction) {
+    playAttackSequence(attacker, defender, attackResult, attackerDamage, defenderResult, isPlayer2, isLastAction, action) {
         this.animator.playAnimation(attacker, 'attacking', isPlayer2);
     
-        const attackText = attackType.toString().toUpperCase();
+        const attackText = attackResult.toString().toUpperCase();
         switch(attackText) {
             case 'EXHAUSTED':
                 this.scene.damageNumbers.show(
@@ -57,7 +140,26 @@ export class CombatSequenceHandler {
             this.animator.playAnimation(attacker, 'idle', isPlayer2);
             
             this.scene.time.delayedCall(this.DEFENSE_DELAY, () => {
-                this.playDefenseAnimation(defender, defenseType, damage, !isPlayer2, isLastAction, attackText === 'CRIT');
+                if (['COUNTER', 'COUNTER_CRIT', 'RIPOSTE', 'RIPOSTE_CRIT'].includes(defenderResult)) {
+                    const defenderDamage = !isPlayer2 ? action.p2Damage : action.p1Damage;
+                    this.playDefenseAnimation(
+                        defender,
+                        defenderResult,
+                        defenderDamage,
+                        !isPlayer2,
+                        isLastAction,
+                        defenderResult.includes('CRIT')
+                    );
+                } else {
+                    this.playDefenseAnimation(
+                        defender, 
+                        defenderResult, 
+                        attackerDamage, 
+                        !isPlayer2, 
+                        isLastAction, 
+                        attackText === 'CRIT'
+                    );
+                }
             });
         });
     }
@@ -187,5 +289,10 @@ export class CombatSequenceHandler {
                 }
             });
         });
+    }
+
+    isOffensiveAction(result) {
+        const resultStr = result.toString().toUpperCase();
+        return ['ATTACK', 'CRIT', 'EXHAUSTED'].includes(resultStr);
     }
 } 
