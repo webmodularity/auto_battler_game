@@ -150,6 +150,7 @@ export default class FightScene extends Phaser.Scene {
         this.animator = new CombatAnimator(this);
         this.sequenceHandler = new CombatSequenceHandler(this);
         this.damageNumbers = new DamageNumbers(this);
+        this.victoryHandler = new VictoryHandler(this);
 
         // 5. Initial Animations
         this.player.play('idle');

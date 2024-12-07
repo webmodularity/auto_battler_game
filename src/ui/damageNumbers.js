@@ -12,11 +12,12 @@ export class DamageNumbers {
             duration: 1500,
             rise: 200,
             colors: {
-                damage: '#ff0000',  // Red
-                block: '#6666ff',   // Blue
-                dodge: '#66ffff',   // Cyan
-                miss: '#ffffff',    // White
-                counter: '#66ff66'  // Green
+                damage: '#ff0000',    // Red
+                block: '#6666ff',     // Blue
+                dodge: '#66ffff',     // Cyan
+                miss: '#ffffff',      // White
+                counter: '#66ff66',   // Green
+                exhausted: '#ff9900'  // Orange for exhausted
             }
         };
     }

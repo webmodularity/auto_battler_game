@@ -43,7 +43,13 @@ export class CombatSequenceHandler {
         const attackText = attackType.toString().toUpperCase();
         switch(attackText) {
             case 'EXHAUSTED':
-                this.scene.damageNumbers.show(attacker.x, attacker.y - 200, 'Exhausted!', 'exhausted');
+                this.scene.damageNumbers.show(
+                    attacker.x, 
+                    attacker.y - 200, 
+                    'Exhausted!', 
+                    'exhausted', 
+                    1.2
+                );
                 break;
         }
     
