@@ -1,44 +1,55 @@
+import * as WebFont from 'webfontloader';
+
 export class DamageNumbers {
     constructor(scene) {
         this.scene = scene;
+        this.damageNumberConfig = {
+            fontSize: {
+                damage: '64px',
+                text: '52px'
+            },
+            fontFamily: 'Bokor',
+            duration: 1500,
+            rise: 200,
+            colors: {
+                damage: '#ff0000',  // Red
+                block: '#6666ff',   // Blue
+                dodge: '#66ffff',   // Cyan
+                miss: '#ffffff',    // White
+                counter: '#66ff66'  // Green
+            }
+        };
     }
 
-    show(x, y, value, type = 'damage') {
-        let color, prefix = '';
-        
-        switch(type) {
-            case 'damage':
-                color = '#ff0000';
-                break;
-            case 'miss':
-                color = '#ffffff';
-                prefix = '';
-                break;
-            case 'block':
-                color = '#ffff00';
-                break;
-            case 'counter':
-                color = '#00ff00';
-                break;
-            default:
-                color = '#ffffff';
-        }
+    show(x, y, text, type = 'damage', scale = 1.0, isCrit = false) {
+        const color = this.damageNumberConfig.colors[type];
+        const fontSize = typeof text === 'number' ? 
+            this.damageNumberConfig.fontSize.damage : 
+            this.damageNumberConfig.fontSize.text;
 
-        const text = this.scene.add.text(x, y, prefix + value, {
-            fontSize: '32px',
-            fill: color,
-            stroke: '#000',
-            strokeThickness: 4
-        }).setOrigin(0.5);
+        // Apply crit scaling if needed
+        const finalScale = isCrit ? scale * 2.0 : scale;
+
+        const damageText = this.scene.add.text(x, y - 50, text, {
+            fontSize: fontSize,
+            fontFamily: this.damageNumberConfig.fontFamily,
+            color: color,
+            stroke: '#000000',
+            strokeThickness: 4,
+            fontStyle: 'bold'
+        })
+        .setOrigin(0.5, 0.5)
+        .setDepth(100)
+        .setScale(finalScale);
 
         this.scene.tweens.add({
-            targets: text,
-            y: y - 100,
+            targets: damageText,
+            y: y - this.damageNumberConfig.rise - 50,
             alpha: 0,
-            duration: 1000,
-            ease: 'Power2',
+            duration: this.damageNumberConfig.duration,
+            ease: 'Power1',
             onComplete: () => {
-                text.destroy();
+                damageText.destroy();
             }
         });
     }

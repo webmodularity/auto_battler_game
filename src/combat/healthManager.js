@@ -1,98 +1,174 @@
+import * as WebFont from 'webfontloader';
+
 export class HealthManager {
     constructor(scene) {
         this.scene = scene;
-        this.healthBars = {
-            player1: null,
-            player2: null
+        this.barConfig = {
+            width: 400,
+            staminaWidth: 300,
+            height: 26,
+            staminaHeight: 15,
+            fillHeight: 27,
+            padding: 2,
+            y: 50,
+            labelPadding: 30,
+            staminaGap: 8,
+            p1x: scene.cameras.main.centerX - 420,
+            p2x: scene.cameras.main.centerX + 20,
+            nudgeFactor: 3
         };
-        this.staminaBars = {
-            player1: null,
-            player2: null
-        };
+        this.p1Bars = null;
+        this.p2Bars = null;
     }
 
     createBars() {
-        // Create health bars
-        this.healthBars.player1 = this.createHealthBar(200, 50);
-        this.healthBars.player2 = this.createHealthBar(600, 50);
+        // Player 1 bars (right-aligned stamina, nudged left)
+        this.p1Bars = {
+            healthBg: this.scene.add.image(this.barConfig.p1x, this.barConfig.y, 'bar-bg')
+                .setOrigin(0, 0)
+                .setDepth(98)
+                .setDisplaySize(this.barConfig.width, this.barConfig.height),
+            healthFill: this.scene.add.image(this.barConfig.p1x, this.barConfig.y, 'bar-fill-2')
+                .setOrigin(0, 0)
+                .setDepth(100)
+                .setDisplaySize(this.barConfig.width, this.barConfig.height),
+            staminaBg: this.scene.add.image(
+                (this.barConfig.p1x + this.barConfig.width - this.barConfig.staminaWidth) - this.barConfig.nudgeFactor,
+                this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
+                'bar-bg'
+            )
+                .setOrigin(0, 0)
+                .setDepth(98)
+                .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
+            staminaFill: this.scene.add.image(
+                (this.barConfig.p1x + this.barConfig.width - this.barConfig.staminaWidth) - this.barConfig.nudgeFactor,
+                this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
+                'bar-fill-1'
+            )
+                .setOrigin(0, 0)
+                .setDepth(100)
+                .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
+            health: 100,
+            stamina: 100
+        };
 
-        // Create stamina bars
-        this.staminaBars.player1 = this.createStaminaBar(200, 80);
-        this.staminaBars.player2 = this.createStaminaBar(600, 80);
+        // Player 2 bars (left-aligned stamina, nudged right)
+        this.p2Bars = {
+            healthBg: this.scene.add.image(this.barConfig.p2x, this.barConfig.y, 'bar-bg')
+                .setOrigin(0, 0)
+                .setDepth(98)
+                .setDisplaySize(this.barConfig.width, this.barConfig.height),
+            healthFill: this.scene.add.image(this.barConfig.p2x, this.barConfig.y, 'bar-fill-2-right')
+                .setOrigin(0, 0)
+                .setDepth(100)
+                .setDisplaySize(this.barConfig.width, this.barConfig.height),
+            staminaBg: this.scene.add.image(
+                this.barConfig.p2x + this.barConfig.nudgeFactor,
+                this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
+                'bar-bg'
+            )
+                .setOrigin(0, 0)
+                .setDepth(98)
+                .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
+            staminaFill: this.scene.add.image(
+                this.barConfig.p2x + this.barConfig.nudgeFactor,
+                this.barConfig.y + this.barConfig.height + this.barConfig.staminaGap,
+                'bar-fill-1-right'
+            )
+                .setOrigin(0, 0)
+                .setDepth(100)
+                .setDisplaySize(this.barConfig.staminaWidth, this.barConfig.staminaHeight),
+            health: 100,
+            stamina: 100
+        };
+
+        // Load fonts and create player labels
+        WebFont.load({
+            google: {
+                families: ['Bokor']
+            },
+            active: () => this.createPlayerLabels()
+        });
     }
 
-    createHealthBar(x, y) {
-        const width = 200;
-        const height = 20;
-        
-        const bar = this.scene.add.graphics();
-        bar.setScrollFactor(0);
-        
-        // Draw background
-        bar.fillStyle(0x2c2c2c);
-        bar.fillRect(x - width/2, y, width, height);
-        
-        // Draw health
-        bar.fillStyle(0xff0000);
-        bar.fillRect(x - width/2, y, width, height);
-        
-        return bar;
+    createPlayerLabels() {
+        // Player labels
+        this.scene.add.text(
+            this.barConfig.p1x + this.barConfig.width - 5, 
+            this.barConfig.y - this.barConfig.labelPadding - 10,
+            'PLAYER 1', 
+            {
+                fontFamily: 'Bokor',
+                fontSize: '32px',
+                color: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        )
+        .setOrigin(1, 0)
+        .setDepth(98);
+
+        this.scene.add.text(
+            this.barConfig.p2x + 5, 
+            this.barConfig.y - this.barConfig.labelPadding - 10,
+            'PLAYER 2', 
+            {
+                fontFamily: 'Bokor',
+                fontSize: '32px',
+                color: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 4
+            }
+        )
+        .setOrigin(0, 0)
+        .setDepth(98);
     }
 
-    createStaminaBar(x, y) {
-        const width = 200;
-        const height = 10;
-        
-        const bar = this.scene.add.graphics();
-        bar.setScrollFactor(0);
-        
-        // Draw background
-        bar.fillStyle(0x2c2c2c);
-        bar.fillRect(x - width/2, y, width, height);
-        
-        // Draw stamina
-        bar.fillStyle(0x00ff00);
-        bar.fillRect(x - width/2, y, width, height);
-        
-        return bar;
+    updateBars(p1Health, p2Health, p1Stamina, p2Stamina) {
+        this.p1Bars.health = p1Health;
+        this.p2Bars.health = p2Health;
+        this.p1Bars.stamina = p1Stamina;
+        this.p2Bars.stamina = p2Stamina;
+
+        this.updateHealthBars();
+        this.updateStaminaBars();
     }
 
-    updateBars(player1Health, player2Health, player1Stamina, player2Stamina) {
-        this.updateHealthBar(this.healthBars.player1, player1Health);
-        this.updateHealthBar(this.healthBars.player2, player2Health);
-        this.updateStaminaBar(this.staminaBars.player1, player1Stamina);
-        this.updateStaminaBar(this.staminaBars.player2, player2Stamina);
+    updateHealthBars() {
+        const p1HealthWidth = Math.floor(this.p1Bars.healthFill.width * (this.p1Bars.health / 100));
+        const p2HealthWidth = Math.floor(this.p2Bars.healthFill.width * (this.p2Bars.health / 100));
+
+        this.p1Bars.healthFill.setCrop(
+            this.p1Bars.healthFill.width - p1HealthWidth,
+            0,
+            p1HealthWidth,
+            this.p1Bars.healthFill.height
+        );
+
+        this.p2Bars.healthFill.setCrop(
+            0,
+            0,
+            p2HealthWidth,
+            this.p2Bars.healthFill.height
+        );
     }
 
-    updateHealthBar(bar, percentage) {
-        bar.clear();
-        const width = 200;
-        const height = 20;
-        const x = bar.x;
-        const y = bar.y;
+    updateStaminaBars() {
+        const p1StaminaWidth = Math.floor(this.p1Bars.staminaFill.width * (this.p1Bars.stamina / 100));
+        const p2StaminaWidth = Math.floor(this.p2Bars.staminaFill.width * (this.p2Bars.stamina / 100));
 
-        // Draw background
-        bar.fillStyle(0x2c2c2c);
-        bar.fillRect(x - width/2, y, width, height);
+        this.p1Bars.staminaFill.setCrop(
+            this.p1Bars.staminaFill.width - p1StaminaWidth,
+            0,
+            p1StaminaWidth,
+            this.p1Bars.staminaFill.height
+        );
 
-        // Draw health
-        bar.fillStyle(0xff0000);
-        bar.fillRect(x - width/2, y, width * (percentage/100), height);
+        this.p2Bars.staminaFill.setCrop(
+            0,
+            0,
+            p2StaminaWidth,
+            this.p2Bars.staminaFill.height
+        );
     }
-
-    updateStaminaBar(bar, percentage) {
-        bar.clear();
-        const width = 200;
-        const height = 10;
-        const x = bar.x;
-        const y = bar.y;
-
-        // Draw background
-        bar.fillStyle(0x2c2c2c);
-        bar.fillRect(x - width/2, y, width, height);
-
-        // Draw stamina
-        bar.fillStyle(0x00ff00);
-        bar.fillRect(x - width/2, y, width * (percentage/100), height);
-    }
-} 
+}
