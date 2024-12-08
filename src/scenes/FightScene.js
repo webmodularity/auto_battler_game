@@ -94,10 +94,10 @@ export default class FightScene extends Phaser.Scene {
 
         // Load player spritesheets
         if (this.player1Data?.spritesheetUrl && this.player1Data?.jsonData) {
-            this.load.atlas('player1', this.player1Data.spritesheetUrl, this.player1Data.jsonData);
+            this.load.atlas(`player${this.player1Id}`, this.player1Data.spritesheetUrl, this.player1Data.jsonData);
         }
         if (this.player2Data?.spritesheetUrl && this.player2Data?.jsonData) {
-            this.load.atlas('player2', this.player2Data.spritesheetUrl, this.player2Data.jsonData);
+            this.load.atlas(`player${this.player2Id}`, this.player2Data.spritesheetUrl, this.player2Data.jsonData);
         }
 
         this.load.on('loaderror', (fileObj) => {
@@ -125,13 +125,13 @@ export default class FightScene extends Phaser.Scene {
 
         // 2. Player Setup
         const groundY = 600;
-        this.player = this.physics.add.sprite(125, groundY - 40, 'player1')
+        this.player = this.physics.add.sprite(125, groundY - 40, `player${this.player1Id}`)
             .setFlipX(false)
             .setOrigin(0.5, 1)
             .setDisplaySize(300, 300)
             .setDepth(5);
 
-        this.player2 = this.physics.add.sprite(835, groundY - 40, 'player2')
+        this.player2 = this.physics.add.sprite(835, groundY - 40, `player${this.player2Id}`)
             .setFlipX(true)
             .setOrigin(0.5, 1)
             .setDisplaySize(300, 300)
@@ -139,12 +139,12 @@ export default class FightScene extends Phaser.Scene {
 
         // 3. Animation Setup
         if (this.player2Data?.jsonData) {
-            const texture = this.textures.get('player2');
+            const texture = this.textures.get(`player${this.player2Id}`);
             texture.get('__BASE').customData = this.player2Data.jsonData;
         }
 
-        createPlayerAnimations(this, 'player1');
-        createPlayerAnimations(this, 'player2', true);
+        createPlayerAnimations(this, `player${this.player1Id}`);
+        createPlayerAnimations(this, `player${this.player2Id}`, true);
 
         // 4. Manager Initialization
         this.healthManager = this.USE_DEBUG ? new DebugHealthManager(this) : new HealthManager(this);

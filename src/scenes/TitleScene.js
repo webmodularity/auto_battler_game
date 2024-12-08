@@ -228,12 +228,12 @@ export default class TitleScene extends Phaser.Scene {
                         this.cameras.main.fade(1000, 0, 0, 0);
                         this.time.delayedCall(1000, () => {
                             Promise.all([
-                                loadCharacterData('1'),
-                                loadCharacterData('2')
+                                loadCharacterData('3'),
+                                loadCharacterData('1')
                             ]).then(([player1Data, player2Data]) => {
                                 this.scene.start('FightScene', {
-                                    player1Id: '1',
-                                    player2Id: '2',
+                                    player1Id: '3',
+                                    player2Id: '1',
                                     player1Data,
                                     player2Data
                                 });
