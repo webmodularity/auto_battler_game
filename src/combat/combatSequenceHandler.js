@@ -5,11 +5,38 @@ export class CombatSequenceHandler {
     constructor(scene) {
         this.scene = scene;
         this.animator = scene.animator;
-        this.DEFENSE_DELAY = 400;
+        this.DEFENSE_DELAY = 50;
     }
 
     handleSequence(action, isLastAction) {
         console.log('Raw Combat Action:', action);
+
+        // Handle exhaustion first
+        if (action.p1Result === 'EXHAUSTED') {
+            this.scene.damageNumbers.show(
+                this.scene.player.x, 
+                this.scene.player.y - 200, 
+                'Exhausted!', 
+                'exhausted', 
+                1.2
+            );
+            this.animator.playAnimation(this.scene.player, 'idle', false);
+            this.completeSequence(isLastAction);
+            return;
+        }
+
+        if (action.p2Result === 'EXHAUSTED') {
+            this.scene.damageNumbers.show(
+                this.scene.player2.x, 
+                this.scene.player2.y - 200, 
+                'Exhausted!', 
+                'exhausted', 
+                1.2
+            );
+            this.animator.playAnimation(this.scene.player2, 'idle', true);
+            this.completeSequence(isLastAction);
+            return;
+        }
 
         // Get current values
         const currentP1Health = this.scene.healthManager.p1Bars.health;
@@ -121,21 +148,22 @@ export class CombatSequenceHandler {
     }
 
     playAttackSequence(attacker, defender, attackResult, attackerDamage, defenderResult, isPlayer2, isLastAction, action) {
-        this.animator.playAnimation(attacker, 'attacking', isPlayer2);
-    
+        // Convert to uppercase string for consistency
         const attackText = attackResult.toString().toUpperCase();
-        switch(attackText) {
-            case 'EXHAUSTED':
-                this.scene.damageNumbers.show(
-                    attacker.x, 
-                    attacker.y - 200, 
-                    'Exhausted!', 
-                    'exhausted', 
-                    1.2
-                );
-                break;
+        
+        // Play attack animation
+        this.animator.playAnimation(attacker, 'attacking', isPlayer2);
+        
+        // Only play attack sound if it's not being defended against
+        const isDefended = ['BLOCK', 'PARRY', 'COUNTER', 'COUNTER_CRIT', 'RIPOSTE', 'RIPOSTE_CRIT'].includes(defenderResult);
+        if (!isDefended) {
+            const weaponType = 'SwordAndShield';
+            const armorType = 'Leather';
+            const isCrit = attackResult === 'CRIT';
+            const isMiss = defenderResult === 'MISS' || defenderResult === 'DODGE';
+            this.scene.audioManager.playAttackSound(weaponType, armorType, isCrit, isMiss);
         }
-    
+
         attacker.once('animationcomplete', () => {
             this.animator.playAnimation(attacker, 'idle', isPlayer2);
             
@@ -170,18 +198,27 @@ export class CombatSequenceHandler {
         
         switch(defenseText) {
             case 'MISS':
-                this.scene.damageNumbers.show(defender.x, defender.y - 200, 'Miss!', 'miss');
-                this.completeSequence(isLastAction);
-                return;
             case 'DODGE':
-                this.scene.damageNumbers.show(defender.x, defender.y - 200, 'Dodge!', 'dodge');
-                this.animator.playAnimation(defender, 'dodging', isPlayer2);
-                defender.once('animationcomplete', () => {
-                    this.animator.playAnimation(defender, 'idle', isPlayer2);
+                // Remove sound playing from here
+                this.scene.damageNumbers.show(
+                    defender.x, 
+                    defender.y - 200, 
+                    defenseText === 'MISS' ? 'Miss!' : 'Dodge!', 
+                    defenseText.toLowerCase()
+                );
+                
+                if (defenseText === 'DODGE') {
+                    this.animator.playAnimation(defender, 'dodging', isPlayer2);
+                    defender.once('animationcomplete', () => {
+                        this.animator.playAnimation(defender, 'idle', isPlayer2);
+                        this.completeSequence(isLastAction);
+                    });
+                } else {
                     this.completeSequence(isLastAction);
-                });
+                }
                 return;
             case 'HIT':
+                // Remove sound playing from here
                 this.scene.damageNumbers.show(
                     defender.x, 
                     defender.y - 200, 
@@ -197,6 +234,7 @@ export class CombatSequenceHandler {
                 });
                 return;
             case 'BLOCK':
+                this.scene.audioManager.playDefenseSound('BLOCK');
                 this.scene.damageNumbers.show(defender.x, defender.y - 200, 'Block!', 'block');
                 this.animator.playAnimation(defender, 'blocking', isPlayer2);
                 defender.once('animationcomplete', () => {
@@ -204,8 +242,18 @@ export class CombatSequenceHandler {
                     this.completeSequence(isLastAction);
                 });
                 return;
+            case 'PARRY':
+                this.scene.audioManager.playDefenseSound('PARRY');
+                this.scene.damageNumbers.show(defender.x, defender.y - 200, 'Parry!', 'block');
+                this.animator.playAnimation(defender, 'attacking', isPlayer2);
+                defender.once('animationcomplete', () => {
+                    this.animator.playAnimation(defender, 'idle', isPlayer2);
+                    this.completeSequence(isLastAction);
+                });
+                return;
             case 'COUNTER':
             case 'COUNTER_CRIT':
+                this.scene.audioManager.playDefenseSound(defenseText, defenseText === 'COUNTER_CRIT');
                 this.scene.damageNumbers.show(defender.x, defender.y - 200, 'Counter!', 'counter');
                 this.animator.playAnimation(defender, 'blocking', isPlayer2);
                 defender.once('animationcomplete', () => {
@@ -226,16 +274,9 @@ export class CombatSequenceHandler {
                     });
                 });
                 return;
-            case 'PARRY':
-                this.scene.damageNumbers.show(defender.x, defender.y - 200, 'Parry!', 'block');
-                this.animator.playAnimation(defender, 'attacking', isPlayer2);
-                defender.once('animationcomplete', () => {
-                    this.animator.playAnimation(defender, 'idle', isPlayer2);
-                    this.completeSequence(isLastAction);
-                });
-                return;
             case 'RIPOSTE':
             case 'RIPOSTE_CRIT':
+                this.scene.audioManager.playDefenseSound(defenseText, defenseText === 'RIPOSTE_CRIT');
                 this.scene.damageNumbers.show(defender.x, defender.y - 200, 'Riposte!', 'counter');
                 this.animator.playAnimation(defender, 'attacking', isPlayer2);
                 defender.once('animationcomplete', () => {
@@ -293,6 +334,6 @@ export class CombatSequenceHandler {
 
     isOffensiveAction(result) {
         const resultStr = result.toString().toUpperCase();
-        return ['ATTACK', 'CRIT', 'EXHAUSTED'].includes(resultStr);
+        return ['ATTACK', 'CRIT'].includes(resultStr);
     }
 } 

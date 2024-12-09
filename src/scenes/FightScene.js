@@ -7,6 +7,7 @@ import { VictoryHandler } from '../combat/victoryHandler';
 import { HealthManager } from '../combat/healthManager';
 import { DebugHealthManager } from '../combat/debugHealthManager';
 import { DamageNumbers } from '../ui/damageNumbers';
+import { CombatAudioManager } from '../combat/combatAudioManager';
 
 export default class FightScene extends Phaser.Scene {
     constructor() {
@@ -60,6 +61,12 @@ export default class FightScene extends Phaser.Scene {
     }
 
     init(data) {
+        // Guard against multiple initializations
+        if (this.isInitialized) {
+            return;
+        }
+        this.isInitialized = true;
+
         this.player1Id = data.player1Id;
         this.player2Id = data.player2Id;
         this.player1Data = data.player1Data;
@@ -106,6 +113,16 @@ export default class FightScene extends Phaser.Scene {
     }
 
     async create() {
+        // Initialize audio manager first, before other setup
+        this.audioManager = new CombatAudioManager(this);
+        
+        // Wait for sounds to load before continuing
+        await new Promise(resolve => {
+            this.load.once('complete', resolve);
+            this.audioManager.preloadSounds();
+            this.load.start(); // Important: start the load
+        });
+
         // 1. Scene Setup - Background Layers
         const layers = [
             { key: 'sky', depth: 0, alpha: 0.75 },
@@ -114,6 +131,9 @@ export default class FightScene extends Phaser.Scene {
             { key: 'foreground', depth: 3, alpha: 0.65 },
             { key: 'ground-01', depth: 4, alpha: 1 }
         ];
+
+        // Clear any existing game objects first
+        this.children.removeAll();
 
         layers.forEach(layer => {
             this.add.image(0, 0, layer.key)
@@ -175,7 +195,7 @@ export default class FightScene extends Phaser.Scene {
             this.rKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.R);
             this.isFightSequencePlaying = false;
 
-            // Auto-start fight
+            // Auto-start fight after sounds are loaded
             this.time.delayedCall(1000, () => this.startFightSequence());
         } catch (error) {
             console.error('Error loading combat data:', error);
@@ -184,6 +204,14 @@ export default class FightScene extends Phaser.Scene {
         // 7. Event Setup
         this.events.once('fightComplete', () => {
             this.victoryHandler.handleVictory(this.combatData.winner, this.player, this.player2);
+        });
+
+        // Add a click handler to unlock audio
+        this.input.on('pointerdown', () => {
+            if (this.sound.locked) {
+                console.log('Attempting to unlock audio on click');
+                this.sound.unlock();
+            }
         });
     }
 
@@ -218,8 +246,10 @@ export default class FightScene extends Phaser.Scene {
 
     // Combat Sequence Methods
     startFightSequence() {
-        if (this.isFightSequencePlaying) return;
-        
+        if (this.isFightSequencePlaying) {
+            console.warn('Fight sequence already playing, ignoring duplicate start');
+            return;
+        }
         this.isFightSequencePlaying = true;
         
         this.startCountdown().then(() => {
@@ -464,6 +494,27 @@ export default class FightScene extends Phaser.Scene {
                 this.playTauntSequence(winner, suffix, count + 1);
             });
         });
+    }
+
+    shutdown() {
+        // Reset initialization flag
+        this.isInitialized = false;
+        
+        // Clean up any running animations, tweens, etc.
+        this.tweens.killAll();
+        this.time.removeAllEvents();
+        this.sound.removeAll();
+        
+        // Clear all game objects
+        this.children.removeAll();
+        
+        // Reset any class properties
+        this.audioManager = null;
+        this.animator = null;
+        this.sequenceHandler = null;
+        this.healthManager = null;
+        this.damageNumbers = null;
+        this.victoryHandler = null;
     }
 }
 

@@ -225,20 +225,32 @@ export default class TitleScene extends Phaser.Scene {
                     this.player.x = nextX;
                     
                     if (nextX >= this.worldBounds.playerRight - 10) {
+                        // Prevent multiple transitions
+                        if (this.isTransitioning) {
+                            return;
+                        }
+                        this.isTransitioning = true;
+
                         this.cameras.main.fade(1000, 0, 0, 0);
                         this.time.delayedCall(1000, () => {
                             Promise.all([
                                 loadCharacterData('3'),
-                                loadCharacterData('1')
+                                loadCharacterData('2')
                             ]).then(([player1Data, player2Data]) => {
+                                // Stop current scene and any running FightScene
+                                this.scene.stop();
+                                this.scene.stop('FightScene');
+                                
+                                // Start fresh FightScene
                                 this.scene.start('FightScene', {
                                     player1Id: '3',
-                                    player2Id: '1',
+                                    player2Id: '2',
                                     player1Data,
                                     player2Data
                                 });
                             }).catch(error => {
                                 console.error('Error loading character data:', error);
+                                this.isTransitioning = false; // Reset flag on error
                             });
                         });
                     }
