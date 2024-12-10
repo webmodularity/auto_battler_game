@@ -14,29 +14,14 @@ export default class TitleScene extends Phaser.Scene {
         this.animator = null;
     }
 
-    init() {
-        // console.log('TitleScene: Init called');
-    }
-
-    preload() {
-        // console.log('TitleScene: Preload called');
-        this.load.image('sky', 'assets/backgrounds/parallax-mountain/sky.png');
-        this.load.image('bg-decor', 'assets/backgrounds/parallax-mountain/bg-decor.png');
-        this.load.image('middle-decor', 'assets/backgrounds/parallax-mountain/middle-decor.png');
-        this.load.image('foreground', 'assets/backgrounds/parallax-mountain/foreground.png');
-        this.load.image('ground-01', 'assets/backgrounds/parallax-mountain/ground-01.png');
-        this.load.image('ground-02', 'assets/backgrounds/parallax-mountain/ground-02.png');
-
-        this.load.on('loaderror', (file) => {
-            console.error('Error loading file:', file.key);
-        });
+    init(data) {
+        this.player1Data = data.player1Data;
     }
 
     create() {
         const PLAYER_ID = '1';
         const playerKey = `player${PLAYER_ID}`;
         
-        // Get the JSON data from the loaded atlas instead of trying to load it separately
         const jsonData = this.textures.get(playerKey).get('__BASE').customData;
         if (!jsonData) {
             console.error('No JSON data available for animations');
@@ -47,14 +32,10 @@ export default class TitleScene extends Phaser.Scene {
         
         const width = this.cameras.main.width;
         const height = this.cameras.main.height;
-
-        // Set world bounds to match background width
+    
         this.physics.world.setBounds(0, 0, this.BACKGROUND_WIDTH, height);
-        
-        // Configure camera to follow player within world bounds
         this.cameras.main.setBounds(0, 0, this.BACKGROUND_WIDTH, height);
-
-        // Add all layers in order with corrected depth and alpha
+    
         const layers = [
             { key: 'sky', depth: 0, alpha: 0.75 },
             { key: 'bg-decor', depth: 1, alpha: 0.75 },
@@ -63,12 +44,12 @@ export default class TitleScene extends Phaser.Scene {
             { key: 'ground-02', depth: 4, alpha: 0.85 },
             { key: 'ground-01', depth: 5, alpha: 1 }
         ];
-
-        // Create background layers with proper positioning - full size
+    
+        // Create background layers with proper positioning
         layers.forEach(layer => {
             this.bgLayers[layer.key] = this.add.image(this.BACKGROUND_WIDTH/2, height, layer.key)
-                .setOrigin(0.5, 1)  // Anchor to bottom center
-                .setScale(1)        // Full size
+                .setOrigin(0.5, 1)
+                .setScale(1)
                 .setDepth(layer.depth)
                 .setAlpha(layer.alpha);
         });
@@ -225,33 +206,19 @@ export default class TitleScene extends Phaser.Scene {
                     this.player.x = nextX;
                     
                     if (nextX >= this.worldBounds.playerRight - 10) {
-                        // Prevent multiple transitions
-                        if (this.isTransitioning) {
-                            return;
-                        }
+                        if (this.isTransitioning) return;
                         this.isTransitioning = true;
-
+                    
                         this.cameras.main.fade(1000, 0, 0, 0);
                         this.time.delayedCall(1000, () => {
-                            Promise.all([
-                                loadCharacterData('3'),
-                                loadCharacterData('2')
-                            ]).then(([player1Data, player2Data]) => {
-                                // Stop current scene and any running FightScene
-                                this.scene.stop();
-                                this.scene.stop('FightScene');
-                                
-                                // Start fresh FightScene
-                                this.scene.start('FightScene', {
-                                    player1Id: '3',
-                                    player2Id: '2',
-                                    player1Data,
-                                    player2Data
-                                });
-                            }).catch(error => {
-                                console.error('Error loading character data:', error);
-                                this.isTransitioning = false; // Reset flag on error
-                            });
+                            // Set URL parameters and reload through BootScene
+                            const searchParams = new URLSearchParams(window.location.search);
+                            searchParams.set('player1Id', '3');
+                            searchParams.set('player2Id', '2');
+                            searchParams.set('txId', null); // Practice Mode
+                            window.history.replaceState({}, '', `${window.location.pathname}?${searchParams}`);
+                            
+                            this.scene.start('BootScene');
                         });
                     }
                 } else {
