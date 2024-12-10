@@ -111,7 +111,7 @@ export class HealthManager {
         // Load fonts and create player labels
         WebFont.load({
             google: {
-                families: ['Bokor']
+                families: ['Bokor', 'Montserrat:700']
             },
             active: () => this.createPlayerLabels()
         });
@@ -120,13 +120,6 @@ export class HealthManager {
     createPlayerLabels() {
         const p1Name = `${this.scene.player1Data.name.fullName} (#${this.scene.player1Id})`;
         const p2Name = `${this.scene.player2Data.name.fullName} (#${this.scene.player2Id})`;
-
-        // Load Montserrat font
-        WebFont.load({
-            google: {
-                families: ['Montserrat:700']  // 700 is bold weight
-            }
-        });
 
         // Player labels
         this.scene.add.text(
