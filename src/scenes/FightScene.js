@@ -112,7 +112,7 @@ export default class FightScene extends Phaser.Scene {
         });
     }
 
-    async create() {
+    async create(data) {
         // Initialize audio manager first, before other setup
         this.audioManager = new CombatAudioManager(this);
         
@@ -158,9 +158,18 @@ export default class FightScene extends Phaser.Scene {
             .setDepth(5);
 
         // 3. Animation Setup
+        if (this.player1Data?.jsonData) {
+            const texture1 = this.textures.get(`player${this.player1Id}`);
+            if (texture1) {
+                texture1.get('__BASE').customData = this.player1Data.jsonData;
+            }
+        }
+        
         if (this.player2Data?.jsonData) {
-            const texture = this.textures.get(`player${this.player2Id}`);
-            texture.get('__BASE').customData = this.player2Data.jsonData;
+            const texture2 = this.textures.get(`player${this.player2Id}`);
+            if (texture2) {
+                texture2.get('__BASE').customData = this.player2Data.jsonData;
+            }
         }
 
         createPlayerAnimations(this, `player${this.player1Id}`);
@@ -213,6 +222,29 @@ export default class FightScene extends Phaser.Scene {
                 this.sound.unlock();
             }
         });
+
+        // Use passed data for network and block number
+        const network = data.network || 'Sepolia';
+        const blockNumber = data.blockNumber || '123456';
+        const txId = data.txId || 'Practice';
+
+        // Add network and block number text in the bottom left (single line)
+        this.networkText = this.add.text(5, this.cameras.main.height - 5, 
+            `Network: ${network} | Block#: ${blockNumber}`, {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            color: '#cccccc',
+            align: 'left'
+        }).setOrigin(0, 1).setDepth(100);
+
+        // Add transaction ID text in the bottom right
+        this.txIdText = this.add.text(this.cameras.main.width - 5, this.cameras.main.height - 5, 
+            `Transaction: ${txId}`, {
+            fontFamily: 'Arial',
+            fontSize: '10px',
+            color: '#cccccc',
+            align: 'right'
+        }).setOrigin(1, 1).setDepth(100);
     }
 
     // Game State Management

@@ -14,16 +14,19 @@ export class CombatAnimator {
     playAnimation(sprite, animationType, isPlayer2 = false) {
         const suffix = isPlayer2 ? '2' : '';
         const animKey = animationType + suffix;
-
+    
         // Check if animation exists and is valid
         if (this.scene.anims.exists(animKey)) {
-            // Only play if it's not already playing this animation
-            if (!sprite.anims.isPlaying || sprite.anims.currentAnim.key !== animKey) {
+            // For one-shot animations, always play
+            if (VALID_ANIMATIONS[animationType]?.repeat === false) {
+                sprite.play(animKey);
+            } 
+            // For repeating animations, only play if not already playing
+            else if (!sprite.anims.isPlaying || sprite.anims.currentAnim.key !== animKey) {
                 sprite.play(animKey);
             }
         } else {
-            console.warn(`Animation ${animKey} not found! Available animations:`, 
-                Object.keys(this.scene.anims.anims.entries));
+            console.warn(`Animation ${animKey} not found!`);
         }
     }
 
@@ -42,7 +45,7 @@ export class CombatAnimator {
             
             // Only switch to idle if it's a one-shot animation
             if (VALID_ANIMATIONS[baseKey]?.repeat === false) {
-                this.playAnimation(sprite, 'idle', isPlayer2);
+                // this.playAnimation(sprite, 'idle', isPlayer2);
                 this.isPlayingOneShot = false;
             }
         });

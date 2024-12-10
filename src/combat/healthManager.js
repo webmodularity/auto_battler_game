@@ -10,8 +10,8 @@ export class HealthManager {
             staminaHeight: 15,
             fillHeight: 27,
             padding: 2,
-            y: 50,
-            labelPadding: 30,
+            y: 40,
+            labelPadding: 20,
             staminaGap: 8,
             p1x: scene.cameras.main.centerX - 420,
             p2x: scene.cameras.main.centerX + 20,
@@ -118,14 +118,24 @@ export class HealthManager {
     }
 
     createPlayerLabels() {
+        const p1Name = `${this.scene.player1Data.name.fullName} (#${this.scene.player1Id})`;
+        const p2Name = `${this.scene.player2Data.name.fullName} (#${this.scene.player2Id})`;
+
+        // Load Montserrat font
+        WebFont.load({
+            google: {
+                families: ['Montserrat:700']  // 700 is bold weight
+            }
+        });
+
         // Player labels
         this.scene.add.text(
             this.barConfig.p1x + this.barConfig.width - 5, 
             this.barConfig.y - this.barConfig.labelPadding - 10,
-            'PLAYER 1', 
+            p1Name, 
             {
-                fontFamily: 'Bokor',
-                fontSize: '32px',
+                fontFamily: 'Montserrat',
+                fontSize: '18px',
                 color: '#ffffff',
                 stroke: '#000000',
                 strokeThickness: 4
@@ -137,10 +147,10 @@ export class HealthManager {
         this.scene.add.text(
             this.barConfig.p2x + 5, 
             this.barConfig.y - this.barConfig.labelPadding - 10,
-            'PLAYER 2', 
+            p2Name, 
             {
-                fontFamily: 'Bokor',
-                fontSize: '32px',
+                fontFamily: 'Montserrat',
+                fontSize: '18px',
                 color: '#ffffff',
                 stroke: '#000000',
                 strokeThickness: 4

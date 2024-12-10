@@ -25,6 +25,10 @@ export class VictoryHandler {
         // Play dying animation for loser
         this.animator.playAnimation(loser, 'dying', !isPlayer2);
 
+        // Get the player name from the scene data
+        const winnerData = isPlayer2 ? this.scene.player2Data : this.scene.player1Data;
+        const winnerName = winnerData?.name?.fullName || `Player ${isPlayer2 ? '2' : '1'}`;
+
         // First add Victory text
         const victoryText = this.scene.add.text(
             this.scene.cameras.main.centerX,
@@ -54,7 +58,7 @@ export class VictoryHandler {
                 const playerText = this.scene.add.text(
                     this.scene.cameras.main.centerX,
                     this.scene.cameras.main.centerY - 10,
-                    `Player ${isPlayer2 ? '2' : '1'}`,
+                    winnerName,
                     {
                         fontFamily: 'Bokor',
                         fontSize: '60px',

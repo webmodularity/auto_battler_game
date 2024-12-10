@@ -22,12 +22,15 @@ export default class TitleScene extends Phaser.Scene {
         const PLAYER_ID = '1';
         const playerKey = `player${PLAYER_ID}`;
         
-        const jsonData = this.textures.get(playerKey).get('__BASE').customData;
-        if (!jsonData) {
-            console.error('No JSON data available for animations');
-            return;
+        // Set the custom data for the texture, similar to FightScene
+        if (this.player1Data?.jsonData) {
+            const texture = this.textures.get(playerKey);
+            if (texture) {
+                texture.get('__BASE').customData = this.player1Data.jsonData;
+            }
         }
         
+        // Now create animations after setting customData
         createPlayerAnimations(this, playerKey);
         
         const width = this.cameras.main.width;
@@ -180,10 +183,9 @@ export default class TitleScene extends Phaser.Scene {
         this.animator.playAnimation(this.player, 'idle');
     }
 
-    update() {
+    update() {     
         const MOVE_SPEED = 2;
-        const DODGE_SPEED = 4;
-
+     
         // Use animator's check for one-shot animations
         if (this.animator.canPlayAnimation()) {
             if (this.cursors.left.isDown) {
@@ -211,14 +213,16 @@ export default class TitleScene extends Phaser.Scene {
                     
                         this.cameras.main.fade(1000, 0, 0, 0);
                         this.time.delayedCall(1000, () => {
-                            // Set URL parameters and reload through BootScene
-                            const searchParams = new URLSearchParams(window.location.search);
-                            searchParams.set('player1Id', '3');
-                            searchParams.set('player2Id', '2');
-                            searchParams.set('txId', null); // Practice Mode
-                            window.history.replaceState({}, '', `${window.location.pathname}?${searchParams}`);
-                            
-                            this.scene.start('BootScene');
+                           const searchParams = new URLSearchParams();
+                           searchParams.set('player1Id', '3');
+                           searchParams.set('player2Id', '2');
+                           
+                           if (import.meta.env.VITE_ALCHEMY_NETWORK !== 'shape-sepolia') {
+                               searchParams.set('network', import.meta.env.VITE_ALCHEMY_NETWORK);
+                           }
+                           
+                           window.history.replaceState({}, '', `${window.location.pathname}?${searchParams}`);
+                           this.scene.start('BootScene');
                         });
                     }
                 } else {
@@ -228,11 +232,10 @@ export default class TitleScene extends Phaser.Scene {
             else if (Phaser.Input.Keyboard.JustDown(this.cursors.up)) {
                 this.animator.playOneShotAnimation(this.player, 'attacking');
             }
-
+     
             if (Phaser.Input.Keyboard.JustDown(this.cursors.down)) {
                 this.animator.playOneShotAnimation(this.player, 'dodging');
                 
-                // Determine direction based on either current running direction or facing direction
                 let direction;
                 if (this.cursors.left.isDown) {
                     direction = -1;
@@ -244,9 +247,8 @@ export default class TitleScene extends Phaser.Scene {
                     direction = this.player.flipX ? -1 : 1;
                 }
                 
-                const targetX = this.player.x + (direction * 150); // Slide distance
+                const targetX = this.player.x + (direction * 150);
                 
-                // Calculate bounded target position
                 const boundedTargetX = Phaser.Math.Clamp(
                     targetX,
                     this.worldBounds.playerLeft,
@@ -256,13 +258,12 @@ export default class TitleScene extends Phaser.Scene {
                 this.tweens.add({
                     targets: this.player,
                     x: boundedTargetX,
-                    duration: 500, // Duration of dodge animation
+                    duration: 500,
                     ease: 'Quad.out',
                     onComplete: () => {
-                        this.isPlayingOneShot = false;
-                        if (!this.cursors.left.isDown && !this.cursors.right.isDown) {
-                            this.player.play('idle', true);
-                        }
+                        this.animator.playAnimation(this.player, 
+                            this.cursors.left.isDown || this.cursors.right.isDown ? 'running' : 'idle'
+                        );
                     }
                 });
             }
@@ -276,5 +277,5 @@ export default class TitleScene extends Phaser.Scene {
                 }
             }
         }
-    }
+     }
 }

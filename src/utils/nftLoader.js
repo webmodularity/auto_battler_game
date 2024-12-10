@@ -29,6 +29,12 @@ const playerABI = [{
     inputs: [],
     outputs: [{ name: '', type: 'address' }]
 }, {
+    name: 'nameRegistry',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [],
+    outputs: [{ name: '', type: 'address' }]
+}, {
     name: 'calculateStats',
     type: 'function',
     stateMutability: 'pure',
@@ -101,6 +107,21 @@ const gameABI = [{
     outputs: [{ name: '', type: 'address' }]
 }];
 
+// Simplified ABI for debugging
+const nameRegistryABI = [{
+    type: 'function',
+    name: 'getFullName',
+    inputs: [
+        { type: 'uint16', name: 'firstNameIndex' },
+        { type: 'uint16', name: 'surnameIndex' }
+    ],
+    outputs: [
+        { type: 'string', name: 'firstName' },
+        { type: 'string', name: 'surname' }
+    ],
+    stateMutability: 'view'
+}];
+
 // Format network name for URL (e.g., "shape-sepolia" -> "shape-sepolia")
 const getAlchemyNetwork = (networkName) => {
     return networkName.toLowerCase(); // ensure lowercase
@@ -122,20 +143,44 @@ export async function loadCharacterData(playerId) {
             transport
         });
 
-        // Get player contract address from game contract
+        // Get player contract address from game contract first
+        const gameContractAddress = import.meta.env.VITE_GAME_CONTRACT_ADDRESS;
         const playerContractAddress = await client.readContract({
-            address: import.meta.env.VITE_GAME_CONTRACT_ADDRESS,
+            address: gameContractAddress,
             abi: gameABI,
             functionName: 'playerContract'
         });
 
-        // Update player stats call with new address
+        // Get name registry address from player contract
+        const nameRegistryAddress = await client.readContract({
+            address: playerContractAddress,
+            abi: playerABI,
+            functionName: 'nameRegistry'
+        });
+
+        // Get player stats
         const playerStats = await client.readContract({
             address: playerContractAddress,
             abi: playerABI,
             functionName: 'getPlayer',
             args: [BigInt(playerId)]
         });
+
+        // Add debug logging
+        console.log('Name Registry Call Details:', {
+            address: nameRegistryAddress,
+            firstNameIndex: playerStats.firstNameIndex,
+            surnameIndex: playerStats.surnameIndex
+        });
+
+        const playerName = await client.readContract({
+            address: nameRegistryAddress,
+            abi: nameRegistryABI,
+            functionName: 'getFullName',
+            args: [playerStats.firstNameIndex, playerStats.surnameIndex]
+        });
+
+        console.log('Player Name Result:', playerName);
 
         // After getting playerStats, calculate the derived stats
         const calculatedStats = await client.readContract({
@@ -244,7 +289,12 @@ export async function loadCharacterData(playerId) {
                     stats,
                     nftContractAddress: skinInfo.contractAddress,
                     spritesheetUrl,
-                    jsonData: metadata
+                    jsonData: metadata,
+                    name: {
+                        firstName: playerName[0],
+                        surname: playerName[1],
+                        fullName: `${playerName[0]} ${playerName[1]}`
+                    }
                 };
             } else {
                 const response = await fetch(tokenURI);
@@ -262,7 +312,12 @@ export async function loadCharacterData(playerId) {
                 stats,
                 nftContractAddress: skinInfo.contractAddress,
                 spritesheetUrl,
-                jsonData: metadata
+                jsonData: metadata,
+                name: {
+                    firstName: playerName[0],
+                    surname: playerName[1],
+                    fullName: `${playerName[0]} ${playerName[1]}`
+                }
             };
 
         } catch (error) {
@@ -270,6 +325,11 @@ export async function loadCharacterData(playerId) {
         }
 
     } catch (error) {
+        console.error('Name Registry Error:', {
+            error,
+            abi: nameRegistryABI,
+            functionSignature: 'getFullName(uint16,uint16)'
+        });
         throw error;
     }
 } 

@@ -21,7 +21,10 @@ export class CombatSequenceHandler {
                 1.2
             );
             this.animator.playAnimation(this.scene.player, 'idle', false);
-            this.completeSequence(isLastAction);
+            // Add delay before completing sequence
+            this.scene.time.delayedCall(1000, () => {
+                this.completeSequence(isLastAction);
+            });
             return;
         }
 
@@ -34,7 +37,10 @@ export class CombatSequenceHandler {
                 1.2
             );
             this.animator.playAnimation(this.scene.player2, 'idle', true);
-            this.completeSequence(isLastAction);
+            // Add delay before completing sequence
+            this.scene.time.delayedCall(1000, () => {
+                this.completeSequence(isLastAction);
+            });
             return;
         }
 
@@ -195,6 +201,20 @@ export class CombatSequenceHandler {
     playDefenseAnimation(defender, defenseType, damage, isPlayer2, isLastAction, isCrit = false) {
         const defenseText = defenseType.toString().toUpperCase();
         const attacker = isPlayer2 ? this.scene.player : this.scene.player2;
+        
+        // Handle exhaustion first
+        if (defenseText === 'EXHAUSTED') {
+            this.scene.damageNumbers.show(
+                defender.x, 
+                defender.y - 200, 
+                'Exhausted!', 
+                'exhausted', 
+                1.2
+            );
+            this.animator.playAnimation(defender, 'idle', isPlayer2);
+            this.completeSequence(isLastAction);
+            return;
+        }
         
         switch(defenseText) {
             case 'MISS':

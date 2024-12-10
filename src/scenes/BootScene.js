@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { LoadingScreen } from '../ui/loadingScreen';
 import { loadCharacterData } from '../utils/nftLoader';
+import { Alchemy } from 'alchemy-sdk';
 
 export default class BootScene extends Phaser.Scene {
     constructor() {
@@ -9,51 +10,83 @@ export default class BootScene extends Phaser.Scene {
 
     init() {
         const params = new URLSearchParams(window.location.search);
-        this.player1Id = params.get('player1Id');
-        this.player2Id = params.get('player2Id');
         this.txId = params.get('txId');
+        this.network = params.get('network') || import.meta.env.VITE_ALCHEMY_NETWORK;
+        this.blockNumber = params.get('blockNumber') || '123456'; // Default block number
+    
+        // Only set player IDs if no txId (practice mode)
+        if (!this.txId) {
+            this.player1Id = params.get('player1Id');
+            this.player2Id = params.get('player2Id');
+        }
     }
 
     preload() {
         this.loadingScreen = new LoadingScreen(this);
-        this.loadBackgroundAssets();
-    
-        // Store promise to ensure we wait for data
-        this.playerDataPromise = this.player1Id && this.player2Id 
-            ? Promise.all([loadCharacterData(this.player1Id), loadCharacterData(this.player2Id)])
-            : Promise.all([loadCharacterData('1')]);
-
-            if (this.sound.locked) {
-                const width = this.cameras.main.width;
-                const height = this.cameras.main.height;
-                
-                const unmuteButton = this.add.text(width/2, height - 50, '🔈 Click to Enable Sound', {
-                    fontSize: '24px',
-                    backgroundColor: '#000000',
-                    padding: { x: 20, y: 10 },
-                    color: '#ffffff'
-                })
-                .setOrigin(0.5)
-                .setInteractive()
-                .setDepth(1002);
         
-                unmuteButton.on('pointerdown', () => {
-                    this.sound.unlock();
-                    unmuteButton.destroy();
-                });
+        // Load background assets first
+        this.loadBackgroundAssets();
+
+        try {
+            // Store promise to ensure we wait for data
+            this.playerDataPromise = this.player1Id && this.player2Id 
+                ? Promise.all([loadCharacterData(this.player1Id), loadCharacterData(this.player2Id)])
+                : Promise.all([loadCharacterData('1')]);
+
+            // Fetch block number separately if needed
+            if (!this.txId) {
+                this.fetchBlockNumber();
             }
+        } catch (error) {
+            console.error('Error loading player data:', error);
+            this.loadingScreen.showError('Error loading player data');
+        }
+
+        if (this.sound.locked) {
+            const width = this.cameras.main.width;
+            const height = this.cameras.main.height;
+            
+            const unmuteButton = this.add.text(width/2, height - 50, '🔈 Click to Enable Sound', {
+                fontSize: '24px',
+                backgroundColor: '#000000',
+                padding: { x: 20, y: 10 },
+                color: '#ffffff'
+            })
+            .setOrigin(0.5)
+            .setInteractive()
+            .setDepth(1002);
+
+            unmuteButton.on('pointerdown', () => {
+                this.sound.unlock();
+                unmuteButton.destroy();
+            });
+        }
     }
-    
+
+    async fetchBlockNumber() {
+        const alchemy = new Alchemy({
+            apiKey: import.meta.env.VITE_ALCHEMY_API_KEY,
+            network: this.network
+        });
+
+        try {
+            const block = await alchemy.core.getBlockNumber();
+            this.blockNumber = block.toString();
+        } catch (error) {
+            console.error('Error fetching block number:', error);
+            this.blockNumber = 'Unknown';
+        }
+    }
+
     async create() {
         try {
             const playerData = await this.playerDataPromise;
-    
-            // Create a promise that resolves when loading is complete
+     
             const loadComplete = new Promise(resolve => {
                 this.load.on('complete', resolve);
                 
                 if (this.player1Id && this.player2Id) {
-                    const [p1Data, p2Data] = playerData;
+                    const [p1Data, p2Data] = playerData; 
                     this.load.atlas(`player${this.player1Id}`, p1Data.spritesheetUrl, p1Data.jsonData);
                     this.load.atlas(`player${this.player2Id}`, p2Data.spritesheetUrl, p2Data.jsonData);
                 } else {
@@ -63,22 +96,28 @@ export default class BootScene extends Phaser.Scene {
                 
                 this.load.start();
             });
-    
-            // Wait for loading to complete
+     
             await loadComplete;
-    
-            // Now safe to transition
+     
             if (this.player1Id && this.player2Id) {
                 const [p1Data, p2Data] = playerData;
                 this.scene.start('FightScene', {
                     player1Id: this.player1Id,
                     player2Id: this.player2Id,
                     player1Data: p1Data,
-                    player2Data: p2Data
+                    player2Data: p2Data,
+                    player1Name: p1Data.name,
+                    player2Name: p2Data.name,
+                    network: this.network,
+                    blockNumber: this.blockNumber,
+                    txId: this.txId || 'Practice'
                 });
             } else {
                 const [p1Data] = playerData;
-                this.scene.start('TitleScene', { player1Data: p1Data });
+                this.scene.start('TitleScene', { 
+                    player1Data: p1Data,
+                    player1Name: p1Data.name 
+                });
             }
             
             this.loadingScreen.hide();
@@ -86,7 +125,7 @@ export default class BootScene extends Phaser.Scene {
             console.error('Error loading player data:', error);
             this.loadingScreen.showError('Error loading game data');
         }
-    }
+     }
 
     loadBackgroundAssets() {
         const paths = {
