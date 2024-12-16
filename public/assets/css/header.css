@@ -1,5 +1,9 @@
 .game-title {
-  font-family: 'Bokor', cursive;
+  font-family: 'Bokor', 'Arial Black', 'Arial Bold', sans-serif;
+  font-display: swap;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   font-size: 140px;
   position: absolute;
   white-space: nowrap;

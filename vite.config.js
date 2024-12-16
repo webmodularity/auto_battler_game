@@ -1,7 +1,7 @@
 import { defineConfig } from 'vite';
 
 export default defineConfig({
-    base: './',
+    base: '/',
     server: {
         host: true
     },
@@ -11,9 +11,12 @@ export default defineConfig({
     build: {
         rollupOptions: {
             input: {
-                main: '/index.html',
-                game: '/game.html'
+                main: 'index.html',
+                game: 'game.html'
             }
-        }
+        },
+        assetsDir: 'assets',
+        emptyOutDir: true,
+        sourcemap: true
     }
 });

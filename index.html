@@ -4,10 +4,9 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Heavy Helms - Coming Soon</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bokor&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/assets/css/header.css">
+    <link rel="stylesheet" href="./assets/css/fonts.css">
+    <link rel="stylesheet" href="./assets/css/header.css">
+    <link rel="stylesheet" href="./assets/css/footer.css">
     <style>
       body {
         margin: 0;
@@ -16,7 +15,7 @@
         color: #fff;
         font-family: 'Inter', sans-serif;
         min-height: 100vh;
-        background-image: url('/assets/main_site_bkg.jpg');
+        background-image: url('./assets/main_site_bkg.jpg');
         background-size: cover;
         background-position: center;
         background-repeat: no-repeat;
@@ -178,76 +177,21 @@
       }
 
       .early-access {
-        font-size: 1.125rem;
-        color: rgba(232, 241, 255, 0.9);
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.6);
         text-align: center;
         margin-top: 2rem;
-        font-weight: normal;
       }
 
-      .footer {
-        position: fixed;
-        bottom: 0;
-        left: 0;
-        right: 0;
-        padding: 20px;
-        background: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0));
-        text-align: center;
-        font-family: 'Inter', sans-serif;
-        color: rgba(255, 255, 255, 0.7);
-        font-size: 14px;
-        letter-spacing: 0.5px;
-        z-index: 10;
-      }
-
-      .footer-content {
-        max-width: 1200px;
-        margin: 0 auto;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-      }
-
-      .footer-left, .footer-center, .footer-right {
-        display: flex;
-        align-items: center;
-      }
-
-      .footer-center {
-        gap: 8px;
-      }
-
-      .try-now {
+      .shape-link {
         color: #a8c6e8;
-        font-weight: 500;
-        letter-spacing: 1px;
-      }
-
-      .try-now:hover {
-        color: #fff;
-        text-shadow: 0 0 12px rgba(168, 198, 232, 0.6);
-      }
-
-      .footer a {
-        color: rgba(255, 255, 255, 0.8);
         text-decoration: none;
         transition: color 0.2s ease;
       }
 
-      .footer a:hover {
+      .shape-link:hover {
         color: #fff;
         text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
-      }
-
-      .shape-link {
-        color: #a8c6e8 !important;
-        font-weight: 500;
-      }
-
-      .powered-by {
-        display: flex;
-        align-items: center;
-        gap: 8px;
       }
     </style>
   </head>
@@ -264,20 +208,24 @@
           <div class="battle-caption"><span>Tim Duskblade</span> vs <span>Pam the Unstoppable</span></div>
         </div>
       </div>
-      <div class="early-access">Early Access Registration Opens Soon</div>
+      <div class="early-access">Early Access Registration Opens January 2025</div>
     </div>
 
     <footer class="footer">
       <div class="footer-content">
-        <a href="/game.html" class="try-now">TRY IT NOW</a>
-        <div class="footer-center">
-          <span>&copy; 2024</span>
-          <a href="https://heavyhelms.xyz">heavyhelms.xyz</a>
+        <div class="contracts-section">
+          <div class="contracts-label">Shape Mainnet Contracts</div>
+          <ul class="contracts-row">
+            <li><a href="https://shapescan.xyz/address/0x70F91e1e982D2Eb0f504BE04c26F3cfF8Ef78193" class="contract-link">Player</a></li>
+            <li><a href="https://shapescan.xyz/address/0x1291B9f12C966Cac8df8081feDEcDE9689F61D13" class="contract-link">GameEngine</a></li>
+            <li><a href="https://shapescan.xyz/address/0x4193CF0Bf2240B4ffe7844225f0059F05F0Df19e" class="contract-link">PracticeGame</a></li>
+            <li><a href="https://shapescan.xyz/address/0x1600B52D499Bc5817A04565F353896f27ee4642a" class="contract-link">DuelGame</a></li>
+          </ul>
         </div>
-        <div class="footer-right">
-          <div class="powered-by">
-            Powered by <a href="https://shape.network" class="shape-link">Shape Network</a>
-          </div>
+        <div class="footer-attribution">
+          <div class="powered-by">Powered by <a href="https://shape.network/" class="shape-link">Shape Network</a></div>
+          <div class="copyright">&copy; 2024 <a href="https://heavyhelms.xyz">Heavy Helms</a></div>
+          <div class="built-by">Built by <a href="https://www.webmodularity.com/" class="webmod-text">WebModularity</a></div>
         </div>
       </div>
     </footer>
