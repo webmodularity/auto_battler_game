@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Bokor&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/header.css">
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: #000 url('/assets/main_site_bkg.jpg') no-repeat center center fixed;
+        background-size: cover;
+      }
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 0;
+      }
+      .game-container {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 0 20px;
+        margin-top: -5vh;
+      }
+      .title-container {
+        position: relative;
+        text-align: center;
+        margin-bottom: 2rem;
+      }
+      .game-title {
+        font-family: 'Bokor', cursive;
+        font-size: 140px;
+        letter-spacing: 0.05em;
+        margin: 0;
+        padding: 0;
+        white-space: nowrap;
+        line-height: 1;
+      }
+      .title-main {
+        background: linear-gradient(180deg, 
+          #e8f1ff 0%,
+          #a8c6e8 40%,
+          #5d89b3 50%,
+          #a8c6e8 60%,
+          #e8f1ff 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        -webkit-text-stroke: 2.5px #000;
+        position: relative;
+        text-shadow:
+          -1px -1px 0px rgba(232,241,255,0.4),
+          1px 1px 2px rgba(93,137,179,0.4);
+        filter: 
+          drop-shadow(0 0 8px rgba(0, 0, 0, 0.8))
+          drop-shadow(4px 4px 0 #000)
+          drop-shadow(0 0 12px rgba(168,198,232,0.25));
+        z-index: 2;
+      }
+      .game-wrapper {
+        width: 960px;
+        height: 540px;
+        margin: 0 auto;
+        position: relative;
+        top: 0;
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.95);
+        overflow: hidden;
+        box-shadow:
+          /* Metallic border effect */
+          0 0 0 1px rgba(232, 241, 255, 0.15),
+          0 0 0 2px rgba(168, 198, 232, 0.1),
+          /* Depth shadows */
+          0 4px 6px rgba(0, 0, 0, 0.3),
+          0 8px 16px rgba(0, 0, 0, 0.3),
+          /* Subtle glow */
+          0 0 20px rgba(93, 137, 179, 0.15);
+      }
+      #game {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+      canvas {
+        display: block;
+        position: relative;
+        z-index: 1;
+        margin: 0;
+        padding: 0;
+        vertical-align: top;
+      }
+      .footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 20px;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0));
+        text-align: center;
+        font-family: 'Inter', sans-serif;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 14px;
+        letter-spacing: 0.5px;
+      }
+
+      .footer-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .footer-left, .footer-center, .footer-right {
+        display: flex;
+        align-items: center;
+      }
+
+      .footer-center {
+        gap: 8px;
+      }
+
+      .try-now {
+        color: #a8c6e8;
+        font-weight: 500;
+        letter-spacing: 1px;
+      }
+
+      .try-now:hover {
+        color: #fff;
+        text-shadow: 0 0 12px rgba(168, 198, 232, 0.6);
+      }
+
+      .footer a {
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        transition: color 0.2s ease;
+      }
+
+      .footer a:hover {
+        color: #fff;
+        text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+      }
+
+      .footer .separator {
+        color: rgba(255, 255, 255, 0.3);
+      }
+
+      .powered-by {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .shape-link {
+        color: #a8c6e8 !important;
+        font-weight: 500;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="game-container">
+      <div class="title-container">
+        <h1 class="game-title title-main">Heavy Helms</h1>
+      </div>
+      <div class="game-wrapper">
+        <div id="game"></div>
+      </div>
+    </div>
+    <div style="font-family: Bokor; position: absolute; left:-1000px; visibility: hidden;">.</div>
+    <script type="module" src="/src/main.js"></script>
+    <footer class="footer">
+      <div class="footer-content">
+        <div class="footer-left">
+          <a href="/game.html" class="try-now">TRY IT NOW</a>
+        </div>
+        <div class="footer-center">
+          <span>&copy; 2024</span>
+          <a href="https://heavyhelms.xyz">heavyhelms.xyz</a>
+        </div>
+        <div class="footer-right">
+          <div class="powered-by">
+            Powered by <a href="https://shape.network" class="shape-link">Shape Network</a>
+          </div>
+        </div>
+      </div>
+    </footer>
+  </body>
+</html>

@@ -3,116 +3,283 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Heavy Helms</title>
+    <title>Heavy Helms - Coming Soon</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Bokor&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Bokor&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/header.css">
     <style>
       body {
         margin: 0;
         padding: 0;
+        background: #000;
+        color: #fff;
+        font-family: 'Inter', sans-serif;
         min-height: 100vh;
+        background-image: url('/assets/main_site_bkg.jpg');
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
         display: flex;
         flex-direction: column;
-        align-items: center;
-        background: #000 url('public/assets/main_site_bkg.jpg') no-repeat center center fixed;
-        background-size: cover;
+        position: relative;
       }
+
       body::before {
         content: '';
-        position: fixed;
+        position: absolute;
         top: 0;
         left: 0;
-        width: 100%;
-        height: 100%;
-        background-color: rgba(0, 0, 0, 0.5);
-        z-index: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.4);
+        pointer-events: none;
       }
-      .game-container {
-        position: relative;
-        z-index: 1;
+
+      .hero-section {
         display: flex;
         flex-direction: column;
         align-items: center;
-        gap: 80px;
-        padding-top: 10px;
-      }
-      .title-container {
+        justify-content: center;
+        min-height: 80vh;
         position: relative;
-        height: 160px;
+        padding: 0 20px;
+        gap: 1rem;
       }
+
+      .title-container {
+        text-align: center;
+        margin-bottom: 1rem;
+      }
+
       .game-title {
         font-family: 'Bokor', cursive;
         font-size: 140px;
-        position: absolute;
-        white-space: nowrap;
-        margin: 0;
-        left: 50%;
-        transform: translateX(-50%);
         letter-spacing: 0.05em;
-      }
-      .title-shadow {
-        color: #000000;
-        top: 4px;
-        left: calc(50% + 4px);
-        opacity: 0.7;
-      }
-      .title-main {
-        color: #ffd700;
-        top: 0;
-        text-shadow: 
-          0 0 4px #ffd700,
-          2px 2px 0 #8b0000,
-          4px 4px 0 #8b0000,
-          2px 2px 8px rgba(255, 215, 0, 0.4);
-        z-index: 2;
-      }
-      .title-overlay {
-        background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,215,0,0.1) 100%);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        top: 0;
-        z-index: 3;
-      }
-      .game-wrapper {
-        width: 960px;
-        height: 540px;
-        position: relative;
-        border: 8px solid #0a0a0a;
-        border-radius: 12px;
-        background: rgba(0, 0, 0, 0.95);
-        overflow: hidden;
-      }
-      #game {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-      }
-      canvas {
-        display: block;
-        position: relative;
-        z-index: 1;
         margin: 0;
         padding: 0;
-        vertical-align: top;
+        background: linear-gradient(180deg, 
+          #e8f1ff 0%,
+          #a8c6e8 40%,
+          #5d89b3 50%,
+          #a8c6e8 60%,
+          #e8f1ff 100%
+        );
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        -webkit-text-stroke: 2.5px #000;
+        text-shadow:
+          -1px -1px 0px rgba(232,241,255,0.4),
+          1px 1px 2px rgba(93,137,179,0.4);
+        filter: 
+          drop-shadow(0 0 8px rgba(0, 0, 0, 0.8))
+          drop-shadow(4px 4px 0 #000)
+          drop-shadow(0 0 12px rgba(168,198,232,0.25));
+      }
+
+      .tagline {
+        font-family: 'Inter', sans-serif;
+        font-size: 28px;
+        font-weight: 600;
+        color: #e8f1ff;
+        margin: 0.5rem 0 4rem;
+        text-shadow: 
+          0 2px 4px rgba(0, 0, 0, 0.6),
+          0 4px 8px rgba(0, 0, 0, 0.4),
+          0 0 30px rgba(168, 198, 232, 0.5);
+        letter-spacing: 0.5px;
+        opacity: 0.95;
+        transform: scale(1.02);
+      }
+
+      .cta-container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        width: 100%;
+        max-width: 380px;
+        gap: 1.5rem;
+      }
+
+      .cta-button {
+        display: block;
+        width: 100%;
+        padding: 1.25rem 2rem;
+        font-size: 1.125rem;
+        font-weight: 600;
+        text-align: center;
+        text-decoration: none;
+        border: none;
+        border-radius: 12px;
+        background: linear-gradient(
+          180deg,
+          rgba(168, 198, 232, 0.15) 0%,
+          rgba(93, 137, 179, 0.25) 100%
+        );
+        backdrop-filter: blur(8px);
+        color: #e8f1ff;
+        transition: all 0.2s ease-in-out;
+        box-shadow: 
+          0 2px 4px rgba(0, 0, 0, 0.2),
+          0 4px 12px rgba(0, 0, 0, 0.1),
+          inset 0 1px 1px rgba(255, 255, 255, 0.1);
+        border: 1px solid rgba(168, 198, 232, 0.2);
+        cursor: pointer;
+      }
+
+      .cta-button-wrapper {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .cta-button:hover {
+        transform: translateY(-2px);
+        background: linear-gradient(
+          180deg,
+          rgba(168, 198, 232, 0.2) 0%,
+          rgba(93, 137, 179, 0.3) 100%
+        );
+        box-shadow: 
+          0 4px 8px rgba(0, 0, 0, 0.25),
+          0 8px 16px rgba(0, 0, 0, 0.15),
+          inset 0 1px 1px rgba(255, 255, 255, 0.15);
+        border: 1px solid rgba(168, 198, 232, 0.3);
+      }
+
+      .cta-button:active {
+        transform: translateY(0);
+        box-shadow: 
+          0 2px 4px rgba(0, 0, 0, 0.2),
+          inset 0 1px 2px rgba(0, 0, 0, 0.1);
+      }
+
+      .battle-caption {
+        font-size: 0.875rem;
+        color: rgba(232, 241, 255, 0.7);
+        text-align: center;
+        margin-top: 0.5rem;
+        font-style: italic;
+        letter-spacing: 0.02em;
+      }
+
+      .battle-caption span {
+        color: rgba(232, 241, 255, 0.85);
+        font-weight: 500;
+      }
+
+      .battle-info {
+        font-size: 0.875rem;
+        color: rgba(232, 241, 255, 0.7);
+        text-align: center;
+        margin-top: -1rem;
+        font-style: italic;
+      }
+
+      .early-access {
+        font-size: 1.125rem;
+        color: rgba(232, 241, 255, 0.9);
+        text-align: center;
+        margin-top: 2rem;
+        font-weight: normal;
+      }
+
+      .footer {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        padding: 20px;
+        background: linear-gradient(to top, rgba(0, 0, 0, 0.95), rgba(0, 0, 0, 0));
+        text-align: center;
+        font-family: 'Inter', sans-serif;
+        color: rgba(255, 255, 255, 0.7);
+        font-size: 14px;
+        letter-spacing: 0.5px;
+        z-index: 10;
+      }
+
+      .footer-content {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .footer-left, .footer-center, .footer-right {
+        display: flex;
+        align-items: center;
+      }
+
+      .footer-center {
+        gap: 8px;
+      }
+
+      .try-now {
+        color: #a8c6e8;
+        font-weight: 500;
+        letter-spacing: 1px;
+      }
+
+      .try-now:hover {
+        color: #fff;
+        text-shadow: 0 0 12px rgba(168, 198, 232, 0.6);
+      }
+
+      .footer a {
+        color: rgba(255, 255, 255, 0.8);
+        text-decoration: none;
+        transition: color 0.2s ease;
+      }
+
+      .footer a:hover {
+        color: #fff;
+        text-shadow: 0 0 8px rgba(255, 255, 255, 0.4);
+      }
+
+      .shape-link {
+        color: #a8c6e8 !important;
+        font-weight: 500;
+      }
+
+      .powered-by {
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
     </style>
   </head>
   <body>
-    <div class="game-container">
+    <div class="hero-section">
       <div class="title-container">
-        <h1 class="game-title title-shadow">Heavy Helms</h1>
-        <h1 class="game-title title-main">Heavy Helms</h1>
-        <h1 class="game-title title-overlay">Heavy Helms</h1>
+        <h1 class="game-title">Heavy Helms</h1>
+        <div class="tagline">Every hit counts, every fight is forever!</div>
       </div>
-      <div class="game-wrapper">
-        <div id="game"></div>
+      <div class="cta-container">
+        <a href="/game.html" class="cta-button">Try Demo Battle</a>
+        <div class="cta-button-wrapper">
+          <a href="/game.html?txId=0xbee9df9ecce3559649a43bb8daeeb8b3c2dc9c623f0f5969cb977c913fc4904b&network=shape-mainnet" class="cta-button">Witness First Onchain Battle</a>
+          <div class="battle-caption"><span>Tim Duskblade</span> vs <span>Pam the Unstoppable</span></div>
+        </div>
       </div>
+      <div class="early-access">Early Access Registration Opens Soon</div>
     </div>
-    <div style="font-family: Bokor; position: absolute; left:-1000px; visibility: hidden;">.</div>
-    <script type="module" src="/src/main.js"></script>
+
+    <footer class="footer">
+      <div class="footer-content">
+        <a href="/game.html" class="try-now">TRY IT NOW</a>
+        <div class="footer-center">
+          <span>&copy; 2024</span>
+          <a href="https://heavyhelms.xyz">heavyhelms.xyz</a>
+        </div>
+        <div class="footer-right">
+          <div class="powered-by">
+            Powered by <a href="https://shape.network" class="shape-link">Shape Network</a>
+          </div>
+        </div>
+      </div>
+    </footer>
   </body>
 </html>
