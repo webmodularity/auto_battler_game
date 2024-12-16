@@ -31,7 +31,7 @@ export default class BootScene extends Phaser.Scene {
             this.loadBackgroundAssets();
 
             // Load audio assets
-            this.load.audio('fight-music', '/assets/audio/bkg/bg6.ogg');
+            this.load.audio('fight-music', '/assets/audio/bkg/bg.ogg');
 
             // If we have a txId, load the duel data first
             if (this.txId) {
