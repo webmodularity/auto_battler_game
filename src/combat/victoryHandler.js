@@ -109,7 +109,20 @@ export class VictoryHandler {
     }
 
     playTauntSequence(winner, isPlayer2, tauntCount = 0) {
-        const MAX_TAUNTS = 7;
+        const MAX_TAUNTS = 4; // Total of 4 taunts (2 before, 2 after)
+        
+        // After first 2 taunts, play attack animation
+        if (tauntCount === 2) {
+            this.animator.playAnimation(winner, 'attacking', isPlayer2);
+            winner.once('animationcomplete', () => {
+                // Continue with taunt sequence after attack
+                this.animator.playAnimation(winner, 'taunting', isPlayer2);
+                winner.once('animationcomplete', () => {
+                    this.playTauntSequence(winner, isPlayer2, tauntCount + 1);
+                });
+            });
+            return;
+        }
         
         if (tauntCount >= MAX_TAUNTS) {
             this.animator.playAnimation(winner, 'idle', isPlayer2);

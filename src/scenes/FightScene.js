@@ -126,6 +126,10 @@ export default class FightScene extends Phaser.Scene {
             this.load.start(); // Important: start the load
         });
 
+        // Start background music
+        this.backgroundMusic = this.sound.add('fight-music', { loop: true, volume: 0.15 });
+        this.backgroundMusic.play();
+
         // 1. Scene Setup - Background Layers
         const layers = [
             { key: 'sky', depth: 0, alpha: 0.75 },
@@ -542,6 +546,9 @@ export default class FightScene extends Phaser.Scene {
     }
 
     shutdown() {
+        if (this.backgroundMusic) {
+            this.backgroundMusic.stop();
+        }
         // Reset initialization flag
         this.isInitialized = false;
         

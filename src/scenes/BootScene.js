@@ -30,6 +30,9 @@ export default class BootScene extends Phaser.Scene {
             // Load background assets first
             this.loadBackgroundAssets();
 
+            // Load audio assets
+            this.load.audio('fight-music', '/assets/audio/bkg/bg6.ogg');
+
             // If we have a txId, load the duel data first
             if (this.txId) {
                 const duelData = await loadDuelDataFromTx(this.txId, this.network);
@@ -37,6 +40,7 @@ export default class BootScene extends Phaser.Scene {
                 this.player2Id = duelData.player2Id.toString();
                 this.combatBytesFromTx = duelData;  // Store the full decoded combat data
                 this.winningPlayerId = duelData.winningPlayerId.toString();
+                this.blockNumber = duelData.blockNumber; // Use block number from transaction
             }
 
             // Store promise to ensure we wait for data

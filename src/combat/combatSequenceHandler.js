@@ -60,11 +60,6 @@ export class CombatSequenceHandler {
         if (['COUNTER', 'COUNTER_CRIT', 'RIPOSTE', 'RIPOSTE_CRIT'].includes(action.p2Result)) {
             const damage = Number(action.p2Damage);
             newP1Health = Math.max(0, currentP1Health - damage);
-            console.log('P2 counter/riposte hit P1:', {
-                type: action.p2Result,
-                damage,
-                newP1Health
-            });
         }
         // If P2 gets HIT normally, apply P1's damage
         else if (action.p2Result === 'HIT' || action.p2Result === 'CRIT') {
@@ -76,11 +71,6 @@ export class CombatSequenceHandler {
         if (['COUNTER', 'COUNTER_CRIT', 'RIPOSTE', 'RIPOSTE_CRIT'].includes(action.p1Result)) {
             const damage = Number(action.p1Damage);
             newP2Health = Math.max(0, currentP2Health - damage);
-            console.log('P1 counter/riposte hit P2:', {
-                type: action.p1Result,
-                damage,
-                newP2Health
-            });
         }
         // If P1 gets HIT normally, apply P2's damage
         else if (action.p1Result === 'HIT' || action.p1Result === 'CRIT') {

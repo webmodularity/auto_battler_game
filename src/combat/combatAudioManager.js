@@ -53,7 +53,7 @@ export class CombatAudioManager {
             
             if (soundKey) {
                 console.log('Attempting to play sound:', soundKey);
-                const sound = this.scene.sound.play(soundKey);
+                const sound = this.scene.sound.play(soundKey, { volume: 0.15 });
                 console.log('Sound play result:', sound);
             }
         } catch (error) {
@@ -67,14 +67,14 @@ export class CombatAudioManager {
         try {
             const soundKey = this.determineDefenseSound(defenseType);
             if (soundKey) {
-                this.scene.sound.play(soundKey);
+                this.scene.sound.play(soundKey, { volume: 0.15 });
                 
                 // For counter/riposte, we'll play the attack sound after a short delay
                 if (['COUNTER', 'COUNTER_CRIT', 'RIPOSTE', 'RIPOSTE_CRIT'].includes(defenseType)) {
                     this.scene.time.delayedCall(200, () => {
                         const weaponType = 'SwordAndShield';
                         const attackSoundKey = this.determineSound(weaponType, null, isCrit);
-                        this.scene.sound.play(attackSoundKey);
+                        this.scene.sound.play(attackSoundKey, { volume: 0.15 });
                     });
                 }
             }

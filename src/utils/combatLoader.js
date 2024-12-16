@@ -241,7 +241,8 @@ export async function loadDuelDataFromTx(txId, network) {
             player2Id: Number(player2Id),
             player1Stats,
             player2Stats,
-            winningPlayerId
+            winningPlayerId,
+            blockNumber: receipt.blockNumber.toString() // Add block number from receipt
         };
 
         // Verify the result has the expected structure

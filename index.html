@@ -3,13 +3,115 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Auto Battler Game</title>
+    <title>Heavy Helms</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Bokor&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    <style>
+      body {
+        margin: 0;
+        padding: 0;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        background: #000 url('public/assets/main_site_bkg.jpg') no-repeat center center fixed;
+        background-size: cover;
+      }
+      body::before {
+        content: '';
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 0;
+      }
+      .game-container {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 80px;
+        padding-top: 10px;
+      }
+      .title-container {
+        position: relative;
+        height: 160px;
+      }
+      .game-title {
+        font-family: 'Bokor', cursive;
+        font-size: 140px;
+        position: absolute;
+        white-space: nowrap;
+        margin: 0;
+        left: 50%;
+        transform: translateX(-50%);
+        letter-spacing: 0.05em;
+      }
+      .title-shadow {
+        color: #000000;
+        top: 4px;
+        left: calc(50% + 4px);
+        opacity: 0.7;
+      }
+      .title-main {
+        color: #ffd700;
+        top: 0;
+        text-shadow: 
+          0 0 4px #ffd700,
+          2px 2px 0 #8b0000,
+          4px 4px 0 #8b0000,
+          2px 2px 8px rgba(255, 215, 0, 0.4);
+        z-index: 2;
+      }
+      .title-overlay {
+        background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,215,0,0.1) 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        top: 0;
+        z-index: 3;
+      }
+      .game-wrapper {
+        width: 960px;
+        height: 540px;
+        position: relative;
+        border: 8px solid #0a0a0a;
+        border-radius: 12px;
+        background: rgba(0, 0, 0, 0.95);
+        overflow: hidden;
+      }
+      #game {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+      canvas {
+        display: block;
+        position: relative;
+        z-index: 1;
+        margin: 0;
+        padding: 0;
+        vertical-align: top;
+      }
+    </style>
   </head>
   <body>
-    <div id="game"></div>
+    <div class="game-container">
+      <div class="title-container">
+        <h1 class="game-title title-shadow">Heavy Helms</h1>
+        <h1 class="game-title title-main">Heavy Helms</h1>
+        <h1 class="game-title title-overlay">Heavy Helms</h1>
+      </div>
+      <div class="game-wrapper">
+        <div id="game"></div>
+      </div>
+    </div>
     <div style="font-family: Bokor; position: absolute; left:-1000px; visibility: hidden;">.</div>
     <script type="module" src="/src/main.js"></script>
   </body>
