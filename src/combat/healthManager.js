@@ -37,13 +37,6 @@ export class HealthManager {
         const p1MaxEndurance = this.scene.player1Data.stats.maxEndurance;
         const p2MaxEndurance = this.scene.player2Data.stats.maxEndurance;
 
-        console.log('Initial Health Values:', {
-            p1MaxHealth,
-            p2MaxHealth,
-            p1MaxEndurance,
-            p2MaxEndurance
-        });
-
         // Player 1 bars (right-aligned, white accent on left)
         this.p1Bars = {
             healthBg: this.scene.add.image(this.barConfig.p1x, this.barConfig.y, 'bar-bg')

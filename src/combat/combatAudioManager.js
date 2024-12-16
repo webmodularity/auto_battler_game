@@ -27,7 +27,6 @@ export class CombatAudioManager {
 
         // Add a completion listener
         this.scene.load.once('complete', () => {
-            console.log('All sounds loaded');
             this.soundsLoaded = true;
         });
 

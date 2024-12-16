@@ -9,8 +9,6 @@ export class CombatSequenceHandler {
     }
 
     handleSequence(action, isLastAction) {
-        console.log('Raw Combat Action:', action);
-
         // Handle exhaustion first
         if (action.p1Result === 'EXHAUSTED') {
             this.scene.damageNumbers.show(
@@ -85,27 +83,6 @@ export class CombatSequenceHandler {
             p1Stamina: newP1Stamina,
             p2Stamina: newP2Stamina
         };
-
-        console.log('Final health update:', {
-            p1: { 
-                oldHealth: currentP1Health, 
-                newHealth: newP1Health,
-                oldStamina: currentP1Stamina,
-                newStamina: newP1Stamina,
-                staminaLost: action.p1StaminaLost,
-                result: action.p1Result,
-                incomingDamage: action.p2Damage
-            },
-            p2: { 
-                oldHealth: currentP2Health, 
-                newHealth: newP2Health,
-                oldStamina: currentP2Stamina,
-                newStamina: newP2Stamina,
-                staminaLost: action.p2StaminaLost,
-                result: action.p2Result,
-                incomingDamage: action.p1Damage
-            }
-        });
 
         // Update the health bars with actual values after a longer delay
         this.scene.time.delayedCall(1200, () => {

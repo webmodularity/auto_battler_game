@@ -70,26 +70,6 @@ export async function loadCharacterData(playerId) {
             }]
         });
 
-        console.log('Player Stats:', {
-            baseStats: {
-                strength: playerStats.strength,
-                constitution: playerStats.constitution,
-                size: playerStats.size,
-                agility: playerStats.agility,
-                stamina: playerStats.stamina,
-                luck: playerStats.luck
-            },
-            calculatedStats: {
-                maxHealth: Number(calculatedStats.maxHealth),
-                maxEndurance: Number(calculatedStats.maxEndurance),
-                damageModifier: Number(calculatedStats.damageModifier),
-                hitChance: Number(calculatedStats.hitChance),
-                blockChance: Number(calculatedStats.blockChance),
-                dodgeChance: Number(calculatedStats.dodgeChance),
-                critChance: Number(calculatedStats.critChance)
-            }
-        });
-
         // Create stats object with both base and calculated stats
         const stats = {
             // Base stats

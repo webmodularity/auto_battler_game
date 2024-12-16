@@ -7,7 +7,6 @@ import { Alchemy } from 'alchemy-sdk';
 
 // Helper function to decode combat bytes into actions
 async function decodeCombatBytes(bytes, network) {
-    console.log('Decoding combat bytes:', bytes);
     const transport = http(`https://${network}.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY}`);
     const client = createPublicClient({
         transport
@@ -30,7 +29,6 @@ async function decodeCombatBytes(bytes, network) {
         functionName: 'decodeCombatLog',
         args: [bytes]
     });
-    console.log('Decoded combat:', decodedCombat);
 
     // Extract actions array - skip gameEngineVersion which is at index 1
     const actions = decodedCombat[3];
@@ -95,8 +93,6 @@ export async function loadCombatBytes(player1Id, player2Id) {
             args: [player1Loadout, player2Loadout]
         });
 
-        console.log('Combat Bytes:', combatBytes);
-
         // Decode using GameEngine - ensure combatBytes is a hex string
         const decodedCombat = await client.readContract({
             address: gameEngineAddress,
@@ -104,8 +100,6 @@ export async function loadCombatBytes(player1Id, player2Id) {
             functionName: 'decodeCombatLog',
             args: [combatBytes]
         });
-
-        console.log('Decoded Combat:', decodedCombat);
 
         // Extract actions array - skip gameEngineVersion which is at index 1
         const actions = decodedCombat[3];
