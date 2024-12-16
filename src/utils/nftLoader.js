@@ -41,21 +41,12 @@ export async function loadCharacterData(playerId) {
             args: [BigInt(playerId)]
         });
 
-        // Add debug logging
-        console.log('Name Registry Call Details:', {
-            address: nameRegistryAddress,
-            firstNameIndex: playerStats.firstNameIndex,
-            surnameIndex: playerStats.surnameIndex
-        });
-
         const playerName = await client.readContract({
             address: nameRegistryAddress,
             abi: NameRegistryABI,
             functionName: 'getFullName',
             args: [playerStats.firstNameIndex, playerStats.surnameIndex]
         });
-
-        console.log('Player Name Result:', playerName);
 
         // After getting playerStats, calculate the derived stats
         const calculatedStats = await client.readContract({

@@ -2,6 +2,11 @@ export class CombatAudioManager {
     constructor(scene) {
         this.scene = scene;
         this.soundsLoaded = false;
+        this.activeSounds = new Set();
+        
+        // Handle window blur/focus
+        window.addEventListener('blur', () => this.stopAllSounds());
+        window.addEventListener('focus', () => this.stopAllSounds());
     }
 
     preloadSounds() {
@@ -33,8 +38,6 @@ export class CombatAudioManager {
     }
 
     playAttackSound(weaponType, armorType, isCrit = false, isMiss = false) {
-        console.log('playAttackSound called with:', { weaponType, armorType, isCrit, isMiss });
-        
         // Only try to play if sounds are loaded
         if (!this.soundsLoaded) {
             console.warn('Sounds not yet loaded');
@@ -42,19 +45,15 @@ export class CombatAudioManager {
         }
 
         try {
-            // Unlock audio context if needed
-            if (this.scene.sound.locked) {
-                console.log('Sound was locked, attempting to unlock');
-                this.scene.sound.unlock();
-            }
-
             const soundKey = this.determineSound(weaponType, armorType, isCrit, isMiss);
-            console.log('Determined sound key:', soundKey);
-            
             if (soundKey) {
-                console.log('Attempting to play sound:', soundKey);
-                const sound = this.scene.sound.play(soundKey, { volume: 0.15 });
-                console.log('Sound play result:', sound);
+                const sound = this.scene.sound.add(soundKey, { volume: 0.15 });
+                sound.once('complete', () => {
+                    this.activeSounds.delete(sound);
+                    sound.destroy();
+                });
+                sound.play();
+                this.activeSounds.add(sound);
             }
         } catch (error) {
             console.error('Error playing sound:', error);
@@ -67,14 +66,26 @@ export class CombatAudioManager {
         try {
             const soundKey = this.determineDefenseSound(defenseType);
             if (soundKey) {
-                this.scene.sound.play(soundKey, { volume: 0.15 });
+                const sound = this.scene.sound.add(soundKey, { volume: 0.15 });
+                sound.once('complete', () => {
+                    this.activeSounds.delete(sound);
+                    sound.destroy();
+                });
+                sound.play();
+                this.activeSounds.add(sound);
                 
                 // For counter/riposte, we'll play the attack sound after a short delay
                 if (['COUNTER', 'COUNTER_CRIT', 'RIPOSTE', 'RIPOSTE_CRIT'].includes(defenseType)) {
                     this.scene.time.delayedCall(200, () => {
                         const weaponType = 'SwordAndShield';
                         const attackSoundKey = this.determineSound(weaponType, null, isCrit);
-                        this.scene.sound.play(attackSoundKey, { volume: 0.15 });
+                        const attackSound = this.scene.sound.add(attackSoundKey, { volume: 0.15 });
+                        attackSound.once('complete', () => {
+                            this.activeSounds.delete(attackSound);
+                            attackSound.destroy();
+                        });
+                        attackSound.play();
+                        this.activeSounds.add(attackSound);
                     });
                 }
             }
@@ -106,5 +117,14 @@ export class CombatAudioManager {
             default:
                 return null;
         }
+    }
+
+    stopAllSounds() {
+        this.activeSounds.forEach(sound => {
+            if (sound && sound.stop) {
+                sound.stop();
+            }
+        });
+        this.activeSounds.clear();
     }
 } 

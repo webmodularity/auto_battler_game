@@ -232,14 +232,6 @@ export default class FightScene extends Phaser.Scene {
             this.victoryHandler.handleVictory(this.combatData.winner, this.player, this.player2);
         });
 
-        // Add a click handler to unlock audio
-        this.input.on('pointerdown', () => {
-            if (this.sound.locked) {
-                console.log('Attempting to unlock audio on click');
-                this.sound.unlock();
-            }
-        });
-
         // Use passed data for network and block number
         const network = data.network || 'Sepolia';
         const blockNumber = data.blockNumber || '123456';

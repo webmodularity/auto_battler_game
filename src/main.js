@@ -1,6 +1,5 @@
 import * as Phaser from 'phaser';
 import BootScene from './scenes/BootScene';
-import TitleScene from './scenes/TitleScene';
 import FightScene from './scenes/FightScene';
 //import NewFightScene from './scenes/NewFightScene';
 
@@ -9,7 +8,7 @@ const config = {
     width: 960,
     height: 540,
     parent: 'game',
-    scene: [BootScene, TitleScene, FightScene],
+    scene: [BootScene, FightScene],
     physics: {
         default: 'arcade',
         arcade: {
