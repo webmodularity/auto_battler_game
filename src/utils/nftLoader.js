@@ -216,69 +216,7 @@ export async function loadCharacterData(playerId) {
     }
 } 
 
-export async function loadDuelDataFromTx(txHash, network) {
-    console.log('Loading duel data for tx:', txHash, 'network:', network);
-    const alchemy = new Alchemy({
-        apiKey: import.meta.env.VITE_ALCHEMY_API_KEY,
-        network: network
-    });
-
-    try {
-        // Get the transaction receipt
-        const receipt = await alchemy.core.getTransactionReceipt(txHash);
-        console.log('Transaction receipt:', receipt);
-        
-        // The event we're looking for is CombatResult(uint32,uint32,uint32,bytes)
-        // We need to decode this from the logs
-        const combatResultTopic = viemKeccak256(
-            toHex('CombatResult(uint32,uint32,uint32,bytes)')
-        );
-        console.log('Combat result topic:', combatResultTopic);
-        
-        // Find the relevant log
-        const combatLog = receipt.logs.find(log => {
-            console.log('Checking log:', log);
-            console.log('Log topic 0:', log.topics[0]);
-            console.log('Expected topic:', combatResultTopic);
-            return log.topics[0] === combatResultTopic;
-        });
-        console.log('Combat log:', combatLog);
-        
-        if (!combatLog) {
-            throw new Error('Combat result log not found in transaction');
-        }
-
-        // Decode the log data
-        // topics[1] = player1Id (indexed)
-        // topics[2] = player2Id (indexed)
-        // topics[3] = winningPlayerId (indexed)
-        // data = packed combat results (bytes)
-        const player1Id = parseInt(combatLog.topics[1], 16);
-        const player2Id = parseInt(combatLog.topics[2], 16);
-        const winningPlayerId = parseInt(combatLog.topics[3], 16);
-        
-        // Extract combat bytes from data:
-        // - first 32 bytes (64 chars): offset
-        // - next 32 bytes (64 chars): length of bytes
-        // - remaining: actual bytes data
-        const rawData = combatLog.data.slice(2); // remove '0x' prefix
-        const combatBytes = '0x' + rawData.slice(128); // Skip first 128 chars (64 bytes) of metadata
-
-        const result = {
-            player1Id,
-            player2Id,
-            winningPlayerId,
-            combatBytes
-        };
-        console.log('Decoded duel data:', result);
-        return result;
-    } catch (error) {
-        console.error('Error loading duel data:', error);
-        throw error;
-    }
-}
-
 // Format network name for URL (e.g., "shape-sepolia" -> "shape-sepolia")
-const getAlchemyNetwork = (networkName) => {
-    return networkName.toLowerCase(); // ensure lowercase
-};
+function getAlchemyNetwork(networkName) {
+    return networkName;
+}

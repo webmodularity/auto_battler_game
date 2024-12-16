@@ -73,6 +73,7 @@ export default class FightScene extends Phaser.Scene {
         this.player2Id = data.player2Id;
         this.player1Data = data.player1Data;
         this.player2Data = data.player2Data;
+        this.combatBytesFromTx = data.combatBytes;  // Store combat bytes if provided from tx
     }
 
     preload() {
@@ -191,15 +192,22 @@ export default class FightScene extends Phaser.Scene {
 
         // 6. Combat Setup
         try {
-            const combatData = await loadCombatBytes(
-                this.player1Id, 
-                this.player2Id
-            );
-            this.combatData = {
-                winner: combatData.winner,
-                condition: combatData.condition,
-                actions: [...combatData.actions]
-            };
+            let combatData;
+            if (this.combatBytesFromTx) {
+                // Use combat data from transaction for duel mode
+                combatData = this.combatBytesFromTx;
+                console.log('Using combat data from transaction:', combatData);
+                if (!combatData || !combatData.actions) {
+                    throw new Error('Invalid combat data from transaction');
+                }
+            } else {
+                // Load combat data from practice game for practice mode
+                combatData = await loadCombatBytes(
+                    this.player1Id, 
+                    this.player2Id
+                );
+            }
+            this.combatData = combatData;
 
             // Store initial positions and setup keyboard
             this.playerStartX = this.player.x;

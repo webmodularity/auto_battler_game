@@ -1,6 +1,7 @@
 import * as Phaser from 'phaser';
 import { LoadingScreen } from '../ui/loadingScreen';
-import { loadCharacterData, loadDuelDataFromTx } from '../utils/nftLoader';
+import { loadCharacterData } from '../utils/nftLoader';
+import { loadDuelDataFromTx } from '../utils/combatLoader';
 import { Alchemy } from 'alchemy-sdk';
 
 export default class BootScene extends Phaser.Scene {
@@ -34,7 +35,7 @@ export default class BootScene extends Phaser.Scene {
                 const duelData = await loadDuelDataFromTx(this.txId, this.network);
                 this.player1Id = duelData.player1Id.toString();
                 this.player2Id = duelData.player2Id.toString();
-                this.combatBytes = duelData.combatBytes;
+                this.combatBytesFromTx = duelData;  // Store the full decoded combat data
                 this.winningPlayerId = duelData.winningPlayerId.toString();
             }
 
@@ -128,10 +129,7 @@ export default class BootScene extends Phaser.Scene {
                     network: this.network,
                     blockNumber: this.blockNumber,
                     txId: this.txId || 'Practice',
-                    combatBytes: this.txId ? {
-                        winner: this.winningPlayerId,
-                        actions: this.combatBytes
-                    } : null
+                    combatBytes: this.txId ? this.combatBytesFromTx : null  // Pass the full duel data object
                 });
             } else {
                 const [p1Data] = playerData;
