@@ -1,73 +1,20 @@
 import { createPublicClient, http, BaseError, ContractFunctionRevertedError } from 'viem';
 import { CombatResultType, WinCondition, getEnumKeyByValue } from './combatDecoder';
-
-const gameABI = [{
-    name: 'practiceGame',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{
-        name: 'player1',
-        type: 'tuple',
-        components: [
-            { name: 'playerId', type: 'uint32' },
-            { name: 'skinIndex', type: 'uint32' },
-            { name: 'skinTokenId', type: 'uint16' }
-        ]
-    }, {
-        name: 'player2',
-        type: 'tuple',
-        components: [
-            { name: 'playerId', type: 'uint32' },
-            { name: 'skinIndex', type: 'uint32' },
-            { name: 'skinTokenId', type: 'uint16' }
-        ]
-    }],
-    outputs: [{ name: '', type: 'bytes' }]
-}, {
-    name: 'gameEngine',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'address' }]
-}];
-
-const gameEngineABI = [{
-    name: 'decodeCombatLog',
-    type: 'function',
-    stateMutability: 'pure',
-    inputs: [
-        { name: 'results', type: 'bytes', internalType: 'bytes' }
-    ],
-    outputs: [
-        { name: 'winningPlayerId', type: 'uint256', internalType: 'uint256' },  // Changed back to uint256
-        { name: 'condition', type: 'uint8', internalType: 'enum GameEngine.WinCondition' },
-        {
-            name: 'actions',
-            type: 'tuple[]',
-            internalType: 'struct GameEngine.CombatAction[]',
-            components: [
-                { name: 'p1Result', type: 'uint8', internalType: 'enum GameEngine.CombatResultType' },
-                { name: 'p1Damage', type: 'uint16', internalType: 'uint16' },
-                { name: 'p1StaminaLost', type: 'uint8', internalType: 'uint8' },
-                { name: 'p2Result', type: 'uint8', internalType: 'enum GameEngine.CombatResultType' },
-                { name: 'p2Damage', type: 'uint16', internalType: 'uint16' },
-                { name: 'p2StaminaLost', type: 'uint8', internalType: 'uint8' }
-            ]
-        }
-    ]
-}];
+import { mainnet } from 'viem/chains';
+import { PracticeGameABI, GameEngineABI } from '../abi';
 
 export async function loadCombatBytes(player1Id, player2Id) {
     try {
         const networkName = import.meta.env.VITE_ALCHEMY_NETWORK.toLowerCase();
         const transport = http(`https://${networkName}.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY}`);
         const client = createPublicClient({
+            chain: mainnet,
             transport
         });
 
         const gameEngineAddress = await client.readContract({
-            address: import.meta.env.VITE_GAME_CONTRACT_ADDRESS,
-            abi: gameABI,
+            address: import.meta.env.VITE_PRACTICE_GAME_CONTRACT_ADDRESS,
+            abi: PracticeGameABI,
             functionName: 'gameEngine'
         });
 
@@ -85,9 +32,9 @@ export async function loadCombatBytes(player1Id, player2Id) {
 
         // Get combat bytes
         const combatBytes = await client.readContract({
-            address: import.meta.env.VITE_GAME_CONTRACT_ADDRESS,
-            abi: gameABI,
-            functionName: 'practiceGame',
+            address: import.meta.env.VITE_PRACTICE_GAME_CONTRACT_ADDRESS,
+            abi: PracticeGameABI,
+            functionName: 'play',
             args: [player1Loadout, player2Loadout]
         });
 
@@ -96,14 +43,15 @@ export async function loadCombatBytes(player1Id, player2Id) {
         // Decode using GameEngine - ensure combatBytes is a hex string
         const decodedCombat = await client.readContract({
             address: gameEngineAddress,
-            abi: gameEngineABI,
+            abi: GameEngineABI,
             functionName: 'decodeCombatLog',
             args: [combatBytes]
         });
 
+        console.log('Decoded Combat:', decodedCombat);
 
-        // Extract actions array
-        const actions = decodedCombat[2];
+        // Extract actions array - skip gameEngineVersion which is at index 1
+        const actions = decodedCombat[3];
         
         // Map the actions with proper enum conversion
         const mappedActions = actions.map((action, index) => {
@@ -123,7 +71,7 @@ export async function loadCombatBytes(player1Id, player2Id) {
 
         const result = {
             winner: Number(decodedCombat[0]),
-            condition: getEnumKeyByValue(WinCondition, Number(decodedCombat[1])),
+            condition: getEnumKeyByValue(WinCondition, Number(decodedCombat[2])), // condition is at index 2 now
             actions: mappedActions
         };
         

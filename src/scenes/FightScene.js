@@ -8,6 +8,8 @@ import { HealthManager } from '../combat/healthManager';
 import { DebugHealthManager } from '../combat/debugHealthManager';
 import { DamageNumbers } from '../ui/damageNumbers';
 import { CombatAudioManager } from '../combat/combatAudioManager';
+import { createPublicClient, http } from 'viem';
+import { PracticeGameABI } from '../abi';
 
 export default class FightScene extends Phaser.Scene {
     constructor() {
@@ -189,7 +191,10 @@ export default class FightScene extends Phaser.Scene {
 
         // 6. Combat Setup
         try {
-            const combatData = await loadCombatBytes(this.player1Id, this.player2Id);
+            const combatData = await loadCombatBytes(
+                this.player1Id, 
+                this.player2Id
+            );
             this.combatData = {
                 winner: combatData.winner,
                 condition: combatData.condition,
@@ -549,4 +554,3 @@ export default class FightScene extends Phaser.Scene {
         this.victoryHandler = null;
     }
 }
-

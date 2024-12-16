@@ -1,131 +1,6 @@
 import { Alchemy, Network } from 'alchemy-sdk';
-import { createPublicClient, http, parseAbiItem } from 'viem';
-
-// ABI for the player contract including skinRegistry and calculateStats
-const playerABI = [{
-    name: 'getPlayer',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'playerId', type: 'uint256' }],
-    outputs: [{
-        type: 'tuple',
-        components: [
-            { name: 'strength', type: 'uint8' },
-            { name: 'constitution', type: 'uint8' },
-            { name: 'size', type: 'uint8' },
-            { name: 'agility', type: 'uint8' },
-            { name: 'stamina', type: 'uint8' },
-            { name: 'luck', type: 'uint8' },
-            { name: 'skinIndex', type: 'uint32' },
-            { name: 'skinTokenId', type: 'uint16' },
-            { name: 'firstNameIndex', type: 'uint16' },
-            { name: 'surnameIndex', type: 'uint16' }
-        ]
-    }]
-}, {
-    name: 'skinRegistry',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'address' }]
-}, {
-    name: 'nameRegistry',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'address' }]
-}, {
-    name: 'calculateStats',
-    type: 'function',
-    stateMutability: 'pure',
-    inputs: [{
-        name: 'player',
-        type: 'tuple',
-        components: [
-            { name: 'strength', type: 'uint8' },
-            { name: 'constitution', type: 'uint8' },
-            { name: 'size', type: 'uint8' },
-            { name: 'agility', type: 'uint8' },
-            { name: 'stamina', type: 'uint8' },
-            { name: 'luck', type: 'uint8' },
-            { name: 'skinIndex', type: 'uint32' },
-            { name: 'skinTokenId', type: 'uint16' },
-            { name: 'firstNameIndex', type: 'uint16' },
-            { name: 'surnameIndex', type: 'uint16' }
-        ]
-    }],
-    outputs: [{
-        type: 'tuple',
-        components: [
-            { name: 'maxHealth', type: 'uint16' },
-            { name: 'damageModifier', type: 'uint16' },
-            { name: 'hitChance', type: 'uint16' },
-            { name: 'blockChance', type: 'uint16' },
-            { name: 'dodgeChance', type: 'uint16' },
-            { name: 'maxEndurance', type: 'uint16' },
-            { name: 'critChance', type: 'uint16' },
-            { name: 'initiative', type: 'uint16' },
-            { name: 'counterChance', type: 'uint16' },
-            { name: 'critMultiplier', type: 'uint16' },
-            { name: 'parryChance', type: 'uint16' }
-        ]
-    }]
-}];
-
-// ABI for the skin registry's getSkin function
-const skinRegistryABI = [{
-    name: 'getSkin',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'index', type: 'uint32' }],
-    outputs: [{
-        type: 'tuple',
-        components: [
-            { name: 'contractAddress', type: 'address' },
-            { name: 'isVerified', type: 'bool' },
-            { name: 'isDefaultCollection', type: 'bool' },
-            { name: 'requiredNFTAddress', type: 'address' }
-        ]
-    }]
-}];
-
-// Add ABI for ERC721 tokenURI method
-const erc721ABI = [{
-    name: 'tokenURI',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'tokenId', type: 'uint256' }],
-    outputs: [{ name: '', type: 'string' }]
-}];
-
-// Add new ABI at the top with other ABIs
-const gameABI = [{
-    name: 'playerContract',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [],
-    outputs: [{ name: '', type: 'address' }]
-}];
-
-// Simplified ABI for debugging
-const nameRegistryABI = [{
-    type: 'function',
-    name: 'getFullName',
-    inputs: [
-        { type: 'uint16', name: 'firstNameIndex' },
-        { type: 'uint16', name: 'surnameIndex' }
-    ],
-    outputs: [
-        { type: 'string', name: 'firstName' },
-        { type: 'string', name: 'surname' }
-    ],
-    stateMutability: 'view'
-}];
-
-// Format network name for URL (e.g., "shape-sepolia" -> "shape-sepolia")
-const getAlchemyNetwork = (networkName) => {
-    return networkName.toLowerCase(); // ensure lowercase
-};
+import { createPublicClient, http, parseAbiItem, keccak256 as viemKeccak256, toHex } from 'viem';
+import { PlayerABI, SkinRegistryABI, ERC721ABI, PracticeGameABI, NameRegistryABI } from '../abi';
 
 const settings = {
     apiKey: import.meta.env.VITE_ALCHEMY_API_KEY,
@@ -144,24 +19,24 @@ export async function loadCharacterData(playerId) {
         });
 
         // Get player contract address from game contract first
-        const gameContractAddress = import.meta.env.VITE_GAME_CONTRACT_ADDRESS;
+        const gameContractAddress = import.meta.env.VITE_PRACTICE_GAME_CONTRACT_ADDRESS;
         const playerContractAddress = await client.readContract({
             address: gameContractAddress,
-            abi: gameABI,
+            abi: PracticeGameABI,
             functionName: 'playerContract'
         });
 
         // Get name registry address from player contract
         const nameRegistryAddress = await client.readContract({
             address: playerContractAddress,
-            abi: playerABI,
+            abi: PlayerABI,
             functionName: 'nameRegistry'
         });
 
         // Get player stats
         const playerStats = await client.readContract({
             address: playerContractAddress,
-            abi: playerABI,
+            abi: PlayerABI,
             functionName: 'getPlayer',
             args: [BigInt(playerId)]
         });
@@ -175,7 +50,7 @@ export async function loadCharacterData(playerId) {
 
         const playerName = await client.readContract({
             address: nameRegistryAddress,
-            abi: nameRegistryABI,
+            abi: NameRegistryABI,
             functionName: 'getFullName',
             args: [playerStats.firstNameIndex, playerStats.surnameIndex]
         });
@@ -185,7 +60,7 @@ export async function loadCharacterData(playerId) {
         // After getting playerStats, calculate the derived stats
         const calculatedStats = await client.readContract({
             address: playerContractAddress,
-            abi: playerABI,
+            abi: PlayerABI,
             functionName: 'calculateStats',
             args: [{
                 strength: playerStats.strength,
@@ -197,7 +72,10 @@ export async function loadCharacterData(playerId) {
                 skinIndex: playerStats.skinIndex,
                 skinTokenId: playerStats.skinTokenId,
                 firstNameIndex: playerStats.firstNameIndex,
-                surnameIndex: playerStats.surnameIndex
+                surnameIndex: playerStats.surnameIndex,
+                wins: playerStats.wins,
+                losses: playerStats.losses,
+                kills: playerStats.kills
             }]
         });
 
@@ -234,6 +112,9 @@ export async function loadCharacterData(playerId) {
             skinTokenId: Number(playerStats.skinTokenId),
             firstNameIndex: Number(playerStats.firstNameIndex),
             surnameIndex: Number(playerStats.surnameIndex),
+            wins: Number(playerStats.wins),
+            losses: Number(playerStats.losses),
+            kills: Number(playerStats.kills),
             // Calculated stats
             maxHealth: Number(calculatedStats.maxHealth),
             maxEndurance: Number(calculatedStats.maxEndurance),
@@ -251,14 +132,14 @@ export async function loadCharacterData(playerId) {
         // Update skin registry call with new address
         const skinRegistryAddress = await client.readContract({
             address: playerContractAddress,
-            abi: playerABI,
+            abi: PlayerABI,
             functionName: 'skinRegistry'
         });
 
         // Get skin info
         const skinInfo = await client.readContract({
             address: skinRegistryAddress,
-            abi: skinRegistryABI,
+            abi: SkinRegistryABI,
             functionName: 'getSkin',
             args: [playerStats.skinIndex]
         });
@@ -266,7 +147,7 @@ export async function loadCharacterData(playerId) {
         // Get NFT metadata
         const tokenURI = await client.readContract({
             address: skinInfo.contractAddress,
-            abi: erc721ABI,
+            abi: ERC721ABI,
             functionName: 'tokenURI',
             args: [BigInt(playerStats.skinTokenId)]
         });
@@ -325,11 +206,79 @@ export async function loadCharacterData(playerId) {
         }
 
     } catch (error) {
-        console.error('Name Registry Error:', {
-            error,
-            abi: nameRegistryABI,
-            functionSignature: 'getFullName(uint16,uint16)'
+        console.error('Error loading character data:', {
+            playerId,
+            error: error.message,
+            networkName: settings.network,
+            stack: error.stack
         });
-        throw error;
+        throw new Error(`Failed to load character data for player ${playerId}: ${error.message}`);
     }
 } 
+
+export async function loadDuelDataFromTx(txHash, network) {
+    console.log('Loading duel data for tx:', txHash, 'network:', network);
+    const alchemy = new Alchemy({
+        apiKey: import.meta.env.VITE_ALCHEMY_API_KEY,
+        network: network
+    });
+
+    try {
+        // Get the transaction receipt
+        const receipt = await alchemy.core.getTransactionReceipt(txHash);
+        console.log('Transaction receipt:', receipt);
+        
+        // The event we're looking for is CombatResult(uint32,uint32,uint32,bytes)
+        // We need to decode this from the logs
+        const combatResultTopic = viemKeccak256(
+            toHex('CombatResult(uint32,uint32,uint32,bytes)')
+        );
+        console.log('Combat result topic:', combatResultTopic);
+        
+        // Find the relevant log
+        const combatLog = receipt.logs.find(log => {
+            console.log('Checking log:', log);
+            console.log('Log topic 0:', log.topics[0]);
+            console.log('Expected topic:', combatResultTopic);
+            return log.topics[0] === combatResultTopic;
+        });
+        console.log('Combat log:', combatLog);
+        
+        if (!combatLog) {
+            throw new Error('Combat result log not found in transaction');
+        }
+
+        // Decode the log data
+        // topics[1] = player1Id (indexed)
+        // topics[2] = player2Id (indexed)
+        // topics[3] = winningPlayerId (indexed)
+        // data = packed combat results (bytes)
+        const player1Id = parseInt(combatLog.topics[1], 16);
+        const player2Id = parseInt(combatLog.topics[2], 16);
+        const winningPlayerId = parseInt(combatLog.topics[3], 16);
+        
+        // Extract combat bytes from data:
+        // - first 32 bytes (64 chars): offset
+        // - next 32 bytes (64 chars): length of bytes
+        // - remaining: actual bytes data
+        const rawData = combatLog.data.slice(2); // remove '0x' prefix
+        const combatBytes = '0x' + rawData.slice(128); // Skip first 128 chars (64 bytes) of metadata
+
+        const result = {
+            player1Id,
+            player2Id,
+            winningPlayerId,
+            combatBytes
+        };
+        console.log('Decoded duel data:', result);
+        return result;
+    } catch (error) {
+        console.error('Error loading duel data:', error);
+        throw error;
+    }
+}
+
+// Format network name for URL (e.g., "shape-sepolia" -> "shape-sepolia")
+const getAlchemyNetwork = (networkName) => {
+    return networkName.toLowerCase(); // ensure lowercase
+};

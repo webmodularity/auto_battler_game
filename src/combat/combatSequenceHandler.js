@@ -356,4 +356,4 @@ export class CombatSequenceHandler {
         const resultStr = result.toString().toUpperCase();
         return ['ATTACK', 'CRIT'].includes(resultStr);
     }
-} 
+}

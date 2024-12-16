@@ -1,6 +1,6 @@
 import * as Phaser from 'phaser';
 import { LoadingScreen } from '../ui/loadingScreen';
-import { loadCharacterData } from '../utils/nftLoader';
+import { loadCharacterData, loadDuelDataFromTx } from '../utils/nftLoader';
 import { Alchemy } from 'alchemy-sdk';
 
 export default class BootScene extends Phaser.Scene {
@@ -21,13 +21,23 @@ export default class BootScene extends Phaser.Scene {
         }
     }
 
-    preload() {
+    async preload() {
         this.loadingScreen = new LoadingScreen(this);
+        this.preloadComplete = false;
         
-        // Load background assets first
-        this.loadBackgroundAssets();
-
         try {
+            // Load background assets first
+            this.loadBackgroundAssets();
+
+            // If we have a txId, load the duel data first
+            if (this.txId) {
+                const duelData = await loadDuelDataFromTx(this.txId, this.network);
+                this.player1Id = duelData.player1Id.toString();
+                this.player2Id = duelData.player2Id.toString();
+                this.combatBytes = duelData.combatBytes;
+                this.winningPlayerId = duelData.winningPlayerId.toString();
+            }
+
             // Store promise to ensure we wait for data
             this.playerDataPromise = this.player1Id && this.player2Id 
                 ? Promise.all([loadCharacterData(this.player1Id), loadCharacterData(this.player2Id)])
@@ -35,8 +45,11 @@ export default class BootScene extends Phaser.Scene {
 
             // Fetch block number separately if needed
             if (!this.txId) {
-                this.fetchBlockNumber();
+                await this.fetchBlockNumber();
             }
+
+            this.preloadComplete = true;
+            this.create();
         } catch (error) {
             console.error('Error loading player data:', error);
             this.loadingScreen.showError('Error loading player data');
@@ -79,6 +92,10 @@ export default class BootScene extends Phaser.Scene {
     }
 
     async create() {
+        if (!this.preloadComplete) {
+            return;
+        }
+
         try {
             const playerData = await this.playerDataPromise;
      
@@ -110,7 +127,11 @@ export default class BootScene extends Phaser.Scene {
                     player2Name: p2Data.name,
                     network: this.network,
                     blockNumber: this.blockNumber,
-                    txId: this.txId || 'Practice'
+                    txId: this.txId || 'Practice',
+                    combatBytes: this.txId ? {
+                        winner: this.winningPlayerId,
+                        actions: this.combatBytes
+                    } : null
                 });
             } else {
                 const [p1Data] = playerData;
@@ -125,7 +146,7 @@ export default class BootScene extends Phaser.Scene {
             console.error('Error loading player data:', error);
             this.loadingScreen.showError('Error loading game data');
         }
-     }
+    }
 
     loadBackgroundAssets() {
         const paths = {

@@ -118,8 +118,8 @@ export class HealthManager {
     }
 
     createPlayerLabels() {
-        const p1Name = `${this.scene.player1Data.name.fullName} (#${this.scene.player1Id})`;
-        const p2Name = `${this.scene.player2Data.name.fullName} (#${this.scene.player2Id})`;
+        const p1Name = `${this.scene.player1Data.name.fullName} (#${this.scene.player1Id}) ${this.scene.player1Data.stats.wins}-${this.scene.player1Data.stats.losses}`;
+        const p2Name = `${this.scene.player2Data.name.fullName} (#${this.scene.player2Id}) ${this.scene.player2Data.stats.wins}-${this.scene.player2Data.stats.losses}`;
 
         // Player labels
         this.scene.add.text(
