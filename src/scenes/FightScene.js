@@ -10,6 +10,7 @@ import { DamageNumbers } from '../ui/damageNumbers';
 import { CombatAudioManager } from '../combat/combatAudioManager';
 import { createPublicClient, http } from 'viem';
 import { PracticeGameABI } from '../abi';
+import { PlayerStatsDisplay } from '../ui/playerStatsDisplay';
 
 export default class FightScene extends Phaser.Scene {
     constructor() {
@@ -62,7 +63,7 @@ export default class FightScene extends Phaser.Scene {
         };
     }
 
-    init(data) {
+    async init(data) {
         // Guard against multiple initializations
         if (this.isInitialized) {
             return;
@@ -71,9 +72,10 @@ export default class FightScene extends Phaser.Scene {
 
         this.player1Id = data.player1Id;
         this.player2Id = data.player2Id;
+        this.gameMode = data.gameMode || 'practice';
         this.player1Data = data.player1Data;
         this.player2Data = data.player2Data;
-        this.combatBytesFromTx = data.combatBytes;  // Store combat bytes if provided from tx
+        this.combatBytesFromTx = data.combatBytes;
     }
 
     preload() {
@@ -129,6 +131,33 @@ export default class FightScene extends Phaser.Scene {
         // Start background music
         this.backgroundMusic = this.sound.add('fight-music', { loop: true, volume: 0.15 });
         this.backgroundMusic.play();
+
+        // Start countdown
+        this.countdownText = this.add.text(
+            this.cameras.main.centerX,
+            this.cameras.main.centerY - 50,
+            '3',
+            {
+                fontFamily: 'Montserrat',
+                fontSize: '64px',
+                color: '#ffffff',
+                stroke: '#000000',
+                strokeThickness: 6
+            }
+        ).setOrigin(0.5);
+
+        let count = 3;
+        const countdownInterval = setInterval(() => {
+            count--;
+            if (count > 0) {
+                this.countdownText.setText(count.toString());
+            } else {
+                clearInterval(countdownInterval);
+                this.countdownText.destroy();
+                // Start the fight sequence
+                this.startFightSequence();
+            }
+        }, 1000);
 
         // 1. Scene Setup - Background Layers
         const layers = [
@@ -222,7 +251,7 @@ export default class FightScene extends Phaser.Scene {
             this.isFightSequencePlaying = false;
 
             // Auto-start fight after sounds are loaded
-            this.time.delayedCall(1000, () => this.startFightSequence());
+            // this.time.delayedCall(1000, () => this.startFightSequence());
         } catch (error) {
             console.error('Error loading combat data:', error);
         }
@@ -254,6 +283,14 @@ export default class FightScene extends Phaser.Scene {
             color: '#cccccc',
             align: 'right'
         }).setOrigin(1, 1).setDepth(100);
+
+        // Create player stats displays immediately but don't show them yet
+        this.player1Stats = new PlayerStatsDisplay(this, 10, 160, false, 'Player 1 Stats');
+        this.player2Stats = new PlayerStatsDisplay(this, this.cameras.main.width - 150, 160, true, 'Player 2 Stats');
+        
+        // Update stats but don't show yet
+        this.player1Stats.update(this.player1Data);
+        this.player2Stats.update(this.player2Data);
     }
 
     // Game State Management
@@ -298,11 +335,16 @@ export default class FightScene extends Phaser.Scene {
             this.animator.playAnimation(this.player, 'running');
             this.animator.playAnimation(this.player2, 'running', true);
 
-            // Move players to center
+            // Move players to center and show stats during the run
             this.tweens.add({
                 targets: this.player,
                 x: this.centerX - 75,
                 duration: 1000,
+                onStart: () => {
+                    this.time.delayedCall(300, () => {
+                        this.player1Stats.show();
+                    });
+                },
                 onComplete: () => {
                     this.animator.playAnimation(this.player, 'idle');
                 }
@@ -311,6 +353,11 @@ export default class FightScene extends Phaser.Scene {
                 targets: this.player2,
                 x: this.centerX + 75,
                 duration: 1000,
+                onStart: () => {
+                    this.time.delayedCall(300, () => {
+                        this.player2Stats.show();
+                    });
+                },
                 onComplete: () => {
                     this.animator.playAnimation(this.player2, 'idle', true);
                     if (this.combatData && this.combatData.actions) {

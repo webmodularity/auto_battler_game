@@ -162,15 +162,15 @@ export async function loadCharacterData(playerId) {
 
             return {
                 stats,
-                nftContractAddress: skinInfo.contractAddress,
-                spritesheetUrl,
-                jsonData: metadata,
-                name: {
-                    firstName: playerName[0],
-                    surname: playerName[1],
-                    fullName: `${playerName[0]} ${playerName[1]}`
-                }
-            };
+                    nftContractAddress: skinInfo.contractAddress,
+                    spritesheetUrl,
+                    jsonData: metadata,
+                    name: {
+                        firstName: playerName[0],
+                        surname: playerName[1],
+                        fullName: playerName[0] + ' ' + playerName[1]
+                    }
+                };
 
         } catch (error) {
             throw error;

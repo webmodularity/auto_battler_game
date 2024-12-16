@@ -111,8 +111,8 @@ export class HealthManager {
     }
 
     createPlayerLabels() {
-        const p1Name = `${this.scene.player1Data.name.fullName} (#${this.scene.player1Id}) ${this.scene.player1Data.stats.wins}-${this.scene.player1Data.stats.losses}`;
-        const p2Name = `${this.scene.player2Data.name.fullName} (#${this.scene.player2Id}) ${this.scene.player2Data.stats.wins}-${this.scene.player2Data.stats.losses}`;
+        const p1Name = this.scene.player1Data.name.fullName;
+        const p2Name = this.scene.player2Data.name.fullName;
 
         // Player labels
         this.scene.add.text(
@@ -120,11 +120,11 @@ export class HealthManager {
             this.barConfig.y - this.barConfig.labelPadding - 10,
             p1Name, 
             {
-                fontFamily: 'Montserrat',
-                fontSize: '18px',
+                fontFamily: 'Bokor',
+                fontSize: '24px',
                 color: '#ffffff',
                 stroke: '#000000',
-                strokeThickness: 4
+                strokeThickness: 6
             }
         )
         .setOrigin(1, 0)
@@ -135,11 +135,11 @@ export class HealthManager {
             this.barConfig.y - this.barConfig.labelPadding - 10,
             p2Name, 
             {
-                fontFamily: 'Montserrat',
-                fontSize: '18px',
+                fontFamily: 'Bokor',
+                fontSize: '24px',
                 color: '#ffffff',
                 stroke: '#000000',
-                strokeThickness: 4
+                strokeThickness: 6
             }
         )
         .setOrigin(0, 0)
@@ -155,43 +155,66 @@ export class HealthManager {
             p2Stamina
         };
 
-        // Stop any existing tweens
+        // Update stat displays if they exist
+        if (this.scene.player1Stats) {
+            const stats = { ...this.scene.player1Data.stats };
+            stats.currentHealth = p1Health;
+            stats.currentEndurance = p1Stamina;
+            this.scene.player1Stats.update({ stats });
+        }
+        
+        if (this.scene.player2Stats) {
+            const stats = { ...this.scene.player2Data.stats };
+            stats.currentHealth = p2Health;
+            stats.currentEndurance = p2Stamina;
+            this.scene.player2Stats.update({ stats });
+        }
+
+        // Kill any existing tweens
         if (this.tweens.p1Health) this.tweens.p1Health.stop();
         if (this.tweens.p2Health) this.tweens.p2Health.stop();
         if (this.tweens.p1Stamina) this.tweens.p1Stamina.stop();
         if (this.tweens.p2Stamina) this.tweens.p2Stamina.stop();
 
-        // Create tweens for smooth transitions
-        this.tweens.p1Health = this.scene.tweens.add({
-            targets: this.p1Bars,
-            health: targetValues.p1Health,
+        // Create new tweens
+        this.tweens.p1Health = this.scene.tweens.addCounter({
+            from: this.p1Bars.health,
+            to: targetValues.p1Health,
             duration: this.tweens.duration,
-            ease: 'Power2',
-            onUpdate: () => this.updateBarDisplays()
+            onUpdate: (tween) => {
+                this.p1Bars.health = tween.getValue();
+                this.updateBarDisplays();
+            }
         });
 
-        this.tweens.p2Health = this.scene.tweens.add({
-            targets: this.p2Bars,
-            health: targetValues.p2Health,
+        this.tweens.p2Health = this.scene.tweens.addCounter({
+            from: this.p2Bars.health,
+            to: targetValues.p2Health,
             duration: this.tweens.duration,
-            ease: 'Power2',
-            onUpdate: () => this.updateBarDisplays()
+            onUpdate: (tween) => {
+                this.p2Bars.health = tween.getValue();
+                this.updateBarDisplays();
+            }
         });
 
-        this.tweens.p1Stamina = this.scene.tweens.add({
-            targets: this.p1Bars,
-            stamina: targetValues.p1Stamina,
+        this.tweens.p1Stamina = this.scene.tweens.addCounter({
+            from: this.p1Bars.stamina,
+            to: targetValues.p1Stamina,
             duration: this.tweens.duration,
-            ease: 'Power2',
-            onUpdate: () => this.updateBarDisplays()
+            onUpdate: (tween) => {
+                this.p1Bars.stamina = tween.getValue();
+                this.updateBarDisplays();
+            }
         });
 
-        this.tweens.p2Stamina = this.scene.tweens.add({
-            targets: this.p2Bars,
-            stamina: targetValues.p2Stamina,
+        this.tweens.p2Stamina = this.scene.tweens.addCounter({
+            from: this.p2Bars.stamina,
+            to: targetValues.p2Stamina,
             duration: this.tweens.duration,
-            ease: 'Power2',
-            onUpdate: () => this.updateBarDisplays()
+            onUpdate: (tween) => {
+                this.p2Bars.stamina = tween.getValue();
+                this.updateBarDisplays();
+            }
         });
     }
 
