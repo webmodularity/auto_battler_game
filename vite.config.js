@@ -1,4 +1,5 @@
 import { defineConfig } from 'vite';
+import { resolve } from 'path';
 
 export default defineConfig({
     base: '/',
@@ -11,12 +12,16 @@ export default defineConfig({
     build: {
         rollupOptions: {
             input: {
-                main: 'index.html',
-                game: 'game.html'
+                main: resolve(__dirname, 'index.html'),
+                game: resolve(__dirname, 'game.html')
             }
         },
         assetsDir: 'assets',
         emptyOutDir: true,
-        sourcemap: true
-    }
+        sourcemap: true,
+        // Copy public directory contents to build output
+        copyPublicDir: true
+    },
+    // Explicitly configure public directory
+    publicDir: 'public'
 });

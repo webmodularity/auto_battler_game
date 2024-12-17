@@ -18,7 +18,7 @@ export async function loadCharacterData(playerId) {
             transport
         });
 
-        // Get player contract address from game contract first
+        // Get player contract address from game contract
         const gameContractAddress = import.meta.env.VITE_PRACTICE_GAME_CONTRACT_ADDRESS;
         const playerContractAddress = await client.readContract({
             address: gameContractAddress,
@@ -26,154 +26,180 @@ export async function loadCharacterData(playerId) {
             functionName: 'playerContract'
         });
 
-        // Get name registry address from player contract
-        const nameRegistryAddress = await client.readContract({
-            address: playerContractAddress,
-            abi: PlayerABI,
-            functionName: 'nameRegistry'
-        });
-
         // Get player stats
-        const playerStats = await client.readContract({
-            address: playerContractAddress,
-            abi: PlayerABI,
-            functionName: 'getPlayer',
-            args: [BigInt(playerId)]
-        });
-
-        const playerName = await client.readContract({
-            address: nameRegistryAddress,
-            abi: NameRegistryABI,
-            functionName: 'getFullName',
-            args: [playerStats.firstNameIndex, playerStats.surnameIndex]
-        });
-
-        // After getting playerStats, calculate the derived stats
-        const calculatedStats = await client.readContract({
-            address: playerContractAddress,
-            abi: PlayerABI,
-            functionName: 'calculateStats',
-            args: [{
-                strength: playerStats.strength,
-                constitution: playerStats.constitution,
-                size: playerStats.size,
-                agility: playerStats.agility,
-                stamina: playerStats.stamina,
-                luck: playerStats.luck,
-                skinIndex: playerStats.skinIndex,
-                skinTokenId: playerStats.skinTokenId,
-                firstNameIndex: playerStats.firstNameIndex,
-                surnameIndex: playerStats.surnameIndex,
-                wins: playerStats.wins,
-                losses: playerStats.losses,
-                kills: playerStats.kills
-            }]
-        });
-
-        // Create stats object with both base and calculated stats
-        const stats = {
-            // Base stats
-            strength: Number(playerStats.strength),
-            constitution: Number(playerStats.constitution),
-            size: Number(playerStats.size),
-            agility: Number(playerStats.agility),
-            stamina: Number(playerStats.stamina),
-            luck: Number(playerStats.luck),
-            skinIndex: Number(playerStats.skinIndex),
-            skinTokenId: Number(playerStats.skinTokenId),
-            firstNameIndex: Number(playerStats.firstNameIndex),
-            surnameIndex: Number(playerStats.surnameIndex),
-            wins: Number(playerStats.wins),
-            losses: Number(playerStats.losses),
-            kills: Number(playerStats.kills),
-            // Calculated stats
-            maxHealth: Number(calculatedStats.maxHealth),
-            maxEndurance: Number(calculatedStats.maxEndurance),
-            damageModifier: Number(calculatedStats.damageModifier),
-            hitChance: Number(calculatedStats.hitChance),
-            blockChance: Number(calculatedStats.blockChance),
-            dodgeChance: Number(calculatedStats.dodgeChance),
-            critChance: Number(calculatedStats.critChance),
-            initiative: Number(calculatedStats.initiative),
-            counterChance: Number(calculatedStats.counterChance),
-            critMultiplier: Number(calculatedStats.critMultiplier),
-            parryChance: Number(calculatedStats.parryChance)
-        };
-
-        // Update skin registry call with new address
-        const skinRegistryAddress = await client.readContract({
-            address: playerContractAddress,
-            abi: PlayerABI,
-            functionName: 'skinRegistry'
-        });
-
-        // Get skin info
-        const skinInfo = await client.readContract({
-            address: skinRegistryAddress,
-            abi: SkinRegistryABI,
-            functionName: 'getSkin',
-            args: [playerStats.skinIndex]
-        });
-
-        // Get NFT metadata
-        const tokenURI = await client.readContract({
-            address: skinInfo.contractAddress,
-            abi: ERC721ABI,
-            functionName: 'tokenURI',
-            args: [BigInt(playerStats.skinTokenId)]
-        });
-
-        let metadata;
         try {
-            if (tokenURI.startsWith('ipfs://')) {
-                const ipfsHash = tokenURI.replace('ipfs://', '');
-                const ipfsUrl = `https://ipfs.io/ipfs/${ipfsHash}`;
-                const response = await fetch(ipfsUrl);
-                const rawText = await response.text();
-                metadata = JSON.parse(rawText);
-                
-                let spritesheetUrl = metadata.image_spritesheet;
-                if (spritesheetUrl && spritesheetUrl.startsWith('ipfs://')) {
-                    spritesheetUrl = spritesheetUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+            let playerStats = await client.readContract({
+                address: playerContractAddress,
+                abi: PlayerABI,
+                functionName: 'getPlayer',
+                args: [BigInt(playerId)]
+            });
+
+            if (!playerStats) {
+                throw new Error(`No player data found for ID ${playerId}`);
+            }
+
+            // Get name registry address and player name
+            const nameRegistryAddress = await client.readContract({
+                address: playerContractAddress,
+                abi: PlayerABI,
+                functionName: 'nameRegistry'
+            });
+
+            const playerName = await client.readContract({
+                address: nameRegistryAddress,
+                abi: NameRegistryABI,
+                functionName: 'getFullName',
+                args: [playerStats.firstNameIndex, playerStats.surnameIndex]
+            });
+
+            // After getting playerStats, calculate the derived stats
+            try {
+                let calculatedStats = await client.readContract({
+                    address: playerContractAddress,
+                    abi: PlayerABI,
+                    functionName: 'calculateStats',
+                    args: [{
+                        strength: playerStats.strength,
+                        constitution: playerStats.constitution,
+                        size: playerStats.size,
+                        agility: playerStats.agility,
+                        stamina: playerStats.stamina,
+                        luck: playerStats.luck,
+                        skinIndex: playerStats.skinIndex,
+                        skinTokenId: playerStats.skinTokenId,
+                        firstNameIndex: playerStats.firstNameIndex,
+                        surnameIndex: playerStats.surnameIndex,
+                        wins: playerStats.wins,
+                        losses: playerStats.losses,
+                        kills: playerStats.kills
+                    }]
+                });
+
+                // Create stats object with both base and calculated stats
+                const stats = {
+                    // Base stats
+                    strength: Number(playerStats.strength),
+                    constitution: Number(playerStats.constitution),
+                    size: Number(playerStats.size),
+                    agility: Number(playerStats.agility),
+                    stamina: Number(playerStats.stamina),
+                    luck: Number(playerStats.luck),
+                    skinIndex: Number(playerStats.skinIndex),
+                    skinTokenId: Number(playerStats.skinTokenId),
+                    firstNameIndex: Number(playerStats.firstNameIndex),
+                    surnameIndex: Number(playerStats.surnameIndex),
+                    wins: Number(playerStats.wins),
+                    losses: Number(playerStats.losses),
+                    kills: Number(playerStats.kills),
+                    // Calculated stats
+                    maxHealth: Number(calculatedStats.maxHealth),
+                    maxEndurance: Number(calculatedStats.maxEndurance),
+                    damageModifier: Number(calculatedStats.damageModifier),
+                    hitChance: Number(calculatedStats.hitChance),
+                    blockChance: Number(calculatedStats.blockChance),
+                    dodgeChance: Number(calculatedStats.dodgeChance),
+                    critChance: Number(calculatedStats.critChance),
+                    initiative: Number(calculatedStats.initiative),
+                    counterChance: Number(calculatedStats.counterChance),
+                    critMultiplier: Number(calculatedStats.critMultiplier),
+                    parryChance: Number(calculatedStats.parryChance)
+                };
+
+                // Update skin registry call with new address
+                const skinRegistryAddress = await client.readContract({
+                    address: playerContractAddress,
+                    abi: PlayerABI,
+                    functionName: 'skinRegistry'
+                });
+
+                // Get skin info
+                const skinInfo = await client.readContract({
+                    address: skinRegistryAddress,
+                    abi: SkinRegistryABI,
+                    functionName: 'getSkin',
+                    args: [playerStats.skinIndex]
+                });
+
+                // Get NFT metadata
+                const tokenURI = await client.readContract({
+                    address: skinInfo.contractAddress,
+                    abi: ERC721ABI,
+                    functionName: 'tokenURI',
+                    args: [BigInt(playerStats.skinTokenId)]
+                });
+
+                let metadata;
+                try {
+                    if (tokenURI.startsWith('ipfs://')) {
+                        const ipfsHash = tokenURI.replace('ipfs://', '');
+                        const ipfsUrl = `https://ipfs.io/ipfs/${ipfsHash}`;
+                        const response = await fetch(ipfsUrl);
+                        const rawText = await response.text();
+                        metadata = JSON.parse(rawText);
+                        
+                        let spritesheetUrl = metadata.image_spritesheet;
+                        if (spritesheetUrl && spritesheetUrl.startsWith('ipfs://')) {
+                            spritesheetUrl = spritesheetUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                        }
+
+                        return {
+                            stats,
+                            nftContractAddress: skinInfo.contractAddress,
+                            spritesheetUrl,
+                            jsonData: metadata,
+                            name: {
+                                firstName: playerName[0],
+                                surname: playerName[1],
+                                fullName: `${playerName[0]} ${playerName[1]}`
+                            }
+                        };
+                    } else {
+                        const response = await fetch(tokenURI);
+                        const rawText = await response.text();
+                        metadata = JSON.parse(rawText);
+                    }
+
+                    // Convert IPFS spritesheet URL to HTTP URL if needed
+                    let spritesheetUrl = metadata.image_spritesheet;
+                    if (spritesheetUrl && spritesheetUrl.startsWith('ipfs://')) {
+                        spritesheetUrl = spritesheetUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
+                    }
+
+                    return {
+                        stats,
+                        nftContractAddress: skinInfo.contractAddress,
+                        spritesheetUrl,
+                        jsonData: metadata,
+                        name: {
+                            firstName: playerName[0],
+                            surname: playerName[1],
+                            fullName: playerName[0] + ' ' + playerName[1]
+                        }
+                    };
+
+                } catch (error) {
+                    throw error;
                 }
 
-                return {
-                    stats,
-                    nftContractAddress: skinInfo.contractAddress,
-                    spritesheetUrl,
-                    jsonData: metadata,
-                    name: {
-                        firstName: playerName[0],
-                        surname: playerName[1],
-                        fullName: `${playerName[0]} ${playerName[1]}`
-                    }
-                };
-            } else {
-                const response = await fetch(tokenURI);
-                const rawText = await response.text();
-                metadata = JSON.parse(rawText);
+            } catch (error) {
+                console.error('Error calculating stats:', {
+                    error: error.message,
+                    cause: error.cause,
+                    data: error.data
+                });
+                throw new Error(`Failed to calculate player stats: ${error.message}`);
             }
 
-            // Convert IPFS spritesheet URL to HTTP URL if needed
-            let spritesheetUrl = metadata.image_spritesheet;
-            if (spritesheetUrl && spritesheetUrl.startsWith('ipfs://')) {
-                spritesheetUrl = spritesheetUrl.replace('ipfs://', 'https://ipfs.io/ipfs/');
-            }
-
-            return {
-                stats,
-                    nftContractAddress: skinInfo.contractAddress,
-                    spritesheetUrl,
-                    jsonData: metadata,
-                    name: {
-                        firstName: playerName[0],
-                        surname: playerName[1],
-                        fullName: playerName[0] + ' ' + playerName[1]
-                    }
-                };
-
-        } catch (error) {
-            throw error;
+        } catch (contractError) {
+            console.error('Contract error details:', {
+                error: contractError.message,
+                cause: contractError.cause,
+                data: contractError.data,
+                playerContractAddress,
+                playerId
+            });
+            throw new Error(`Failed to fetch player stats: ${contractError.message}`);
         }
 
     } catch (error) {

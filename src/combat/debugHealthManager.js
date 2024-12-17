@@ -1,6 +1,16 @@
 export class DebugHealthManager {
-    constructor(scene) {
+    constructor(scene, player1, player2) {
         this.scene = scene;
+        this.player1 = player1;
+        this.player2 = player2;
+        this.p1MaxHealth = player1.stats.maxHealth;
+        this.p2MaxHealth = player2.stats.maxHealth;
+        this.p1CurrentHealth = this.p1MaxHealth;
+        this.p2CurrentHealth = this.p2MaxHealth;
+        this.p1MaxEndurance = player1.stats.maxEndurance;
+        this.p2MaxEndurance = player2.stats.maxEndurance;
+        this.p1CurrentEndurance = this.p1MaxEndurance;
+        this.p2CurrentEndurance = this.p2MaxEndurance;
         this.barConfig = {
             width: 400,
             staminaWidth: 300,
@@ -36,43 +46,31 @@ export class DebugHealthManager {
             p2Stamina: null,
             duration: 500 // Duration of health/stamina change animation
         };
+        this.setupHealthBars();
     }
 
-    createBars() {
-        // Get max values from player data
-        const p1MaxHealth = this.scene.player1Data.stats.maxHealth;
-        const p2MaxHealth = this.scene.player2Data.stats.maxHealth;
-        const p1MaxEndurance = this.scene.player1Data.stats.maxEndurance;
-        const p2MaxEndurance = this.scene.player2Data.stats.maxEndurance;
-
-        console.log('Debug Health Manager - Initial Values:', {
-            p1MaxHealth,
-            p2MaxHealth,
-            p1MaxEndurance,
-            p2MaxEndurance
-        });
-
+    setupHealthBars() {
         // Create debug graphics object with high depth
         this.debugGraphics = this.scene.add.graphics();
         this.debugGraphics.setDepth(100); // Set high depth to render above background
         
         // Store initial values
         this.p1Bars = {
-            health: p1MaxHealth,
-            maxHealth: p1MaxHealth,
-            stamina: p1MaxEndurance,
-            maxStamina: p1MaxEndurance
+            health: this.p1MaxHealth,
+            maxHealth: this.p1MaxHealth,
+            stamina: this.p1MaxEndurance,
+            maxStamina: this.p1MaxEndurance
         };
 
         this.p2Bars = {
-            health: p2MaxHealth,
-            maxHealth: p2MaxHealth,
-            stamina: p2MaxEndurance,
-            maxStamina: p2MaxEndurance
+            health: this.p2MaxHealth,
+            maxHealth: this.p2MaxHealth,
+            stamina: this.p2MaxEndurance,
+            maxStamina: this.p2MaxEndurance
         };
 
         // Draw initial bars
-        this.updateBars(p1MaxHealth, p2MaxHealth, p1MaxEndurance, p2MaxEndurance);
+        this.updateBars(this.p1MaxHealth, this.p2MaxHealth, this.p1MaxEndurance, this.p2MaxEndurance);
     }
 
     updateBars(p1Health, p2Health, p1Stamina, p2Stamina) {

@@ -13,14 +13,12 @@ async function decodeCombatBytes(bytes, network) {
     });
 
     const gameContractAddress = import.meta.env.VITE_PRACTICE_GAME_CONTRACT_ADDRESS;
-    console.log('Game contract address:', gameContractAddress);
     
     const gameEngineAddress = await client.readContract({
         address: gameContractAddress,
         abi: PracticeGameABI,
         functionName: 'gameEngine'
     });
-    console.log('Game engine address:', gameEngineAddress);
 
     // Decode combat log using game engine
     const decodedCombat = await client.readContract({
@@ -32,7 +30,6 @@ async function decodeCombatBytes(bytes, network) {
 
     // Extract actions array - skip gameEngineVersion which is at index 1
     const actions = decodedCombat[3];
-    console.log('Raw actions:', actions);
     
     // Map the actions with proper enum conversion
     const mappedActions = actions.map((action, index) => {
@@ -49,7 +46,6 @@ async function decodeCombatBytes(bytes, network) {
             p2StaminaLost: Number(action.p2StaminaLost)
         };
     });
-    console.log('Mapped actions:', mappedActions);
 
     return {
         winner: Number(decodedCombat[0]),
@@ -67,30 +63,55 @@ export async function loadCombatBytes(player1Id, player2Id) {
             transport
         });
 
-        const gameEngineAddress = await client.readContract({
-            address: import.meta.env.VITE_PRACTICE_GAME_CONTRACT_ADDRESS,
+        // Get player contract address from game contract first
+        const gameContractAddress = import.meta.env.VITE_PRACTICE_GAME_CONTRACT_ADDRESS;
+        const playerContractAddress = await client.readContract({
+            address: gameContractAddress,
             abi: PracticeGameABI,
-            functionName: 'gameEngine'
+            functionName: 'playerContract'
         });
 
+        // Get player data for both players
+        const [player1Data, player2Data] = await Promise.all([
+            client.readContract({
+                address: playerContractAddress,
+                abi: PlayerABI,
+                functionName: 'getPlayer',
+                args: [BigInt(player1Id)]
+            }),
+            client.readContract({
+                address: playerContractAddress,
+                abi: PlayerABI,
+                functionName: 'getPlayer',
+                args: [BigInt(player2Id)]
+            })
+        ]);
+
         const player1Loadout = {
-            playerId: player1Id,
-            skinIndex: 0,
-            skinTokenId: player1Id
+            playerId: BigInt(player1Id),
+            skinIndex: BigInt(player1Data.skinIndex),
+            skinTokenId: BigInt(player1Data.skinTokenId)
         };
 
         const player2Loadout = {
-            playerId: player2Id,
-            skinIndex: 0,
-            skinTokenId: player2Id
+            playerId: BigInt(player2Id),
+            skinIndex: BigInt(player2Data.skinIndex),
+            skinTokenId: BigInt(player2Data.skinTokenId)
         };
 
         // Get combat bytes
         const combatBytes = await client.readContract({
-            address: import.meta.env.VITE_PRACTICE_GAME_CONTRACT_ADDRESS,
+            address: gameContractAddress,
             abi: PracticeGameABI,
             functionName: 'play',
             args: [player1Loadout, player2Loadout]
+        });
+
+        // Get game engine address
+        const gameEngineAddress = await client.readContract({
+            address: gameContractAddress,
+            abi: PracticeGameABI,
+            functionName: 'gameEngine'
         });
 
         // Decode using GameEngine - ensure combatBytes is a hex string
@@ -141,7 +162,6 @@ export async function loadCombatBytes(player1Id, player2Id) {
 
 export async function loadDuelDataFromTx(txId, network) {
     try {
-        console.log('Loading duel data for:', txId, 'network:', network);
         const transport = http(`https://${network}.g.alchemy.com/v2/${import.meta.env.VITE_ALCHEMY_API_KEY}`);
         const client = createPublicClient({
             transport
@@ -149,7 +169,6 @@ export async function loadDuelDataFromTx(txId, network) {
 
         // Get transaction receipt
         const receipt = await client.getTransactionReceipt({hash: txId});
-        console.log('Transaction receipt:', receipt);
 
         // Parse the combat result event logs using DuelGameABI
         const parsedLogs = parseEventLogs({
@@ -157,14 +176,12 @@ export async function loadDuelDataFromTx(txId, network) {
             eventName: 'CombatResult',
             logs: receipt.logs
         });
-        console.log('Parsed logs:', parsedLogs);
 
         if (!parsedLogs || parsedLogs.length === 0) {
             throw new Error('Combat result log not found');
         }
 
         const combatLog = parsedLogs[0];
-        console.log('Combat log:', combatLog);
 
         const player1Data = combatLog.args.player1Data;
         const player2Data = combatLog.args.player2Data;
@@ -241,11 +258,9 @@ export async function loadDuelDataFromTx(txId, network) {
 
         // Verify the result has the expected structure
         if (!result.actions || result.actions.length === 0) {
-            console.error('No actions in processed result:', result);
             throw new Error('No actions in processed result');
         }
 
-        console.log('Decoded duel data:', result);
         return result;
 
     } catch (error) {

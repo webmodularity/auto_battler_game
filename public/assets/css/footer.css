@@ -48,9 +48,11 @@
 }
 
 .contracts-row li::before {
-  content: "•";
+  content: "\2022";  /* Unicode bullet point */
   color: rgba(255, 255, 255, 0.3);
   margin-right: 0.5rem;
+  font-size: 1.2em;
+  line-height: 0;
 }
 
 .contract-link {

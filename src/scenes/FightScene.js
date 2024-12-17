@@ -113,7 +113,7 @@ export default class FightScene extends Phaser.Scene {
         }
 
         this.load.on('loaderror', (fileObj) => {
-            console.error('Error loading file:', fileObj.key);
+            // Handle load error silently
         });
     }
 
@@ -229,7 +229,6 @@ export default class FightScene extends Phaser.Scene {
             if (this.combatBytesFromTx) {
                 // Use combat data from transaction for duel mode
                 combatData = this.combatBytesFromTx;
-                console.log('Using combat data from transaction:', combatData);
                 if (!combatData || !combatData.actions) {
                     throw new Error('Invalid combat data from transaction');
                 }
@@ -253,7 +252,7 @@ export default class FightScene extends Phaser.Scene {
             // Auto-start fight after sounds are loaded
             // this.time.delayedCall(1000, () => this.startFightSequence());
         } catch (error) {
-            console.error('Error loading combat data:', error);
+            // Handle error silently
         }
 
         // 7. Event Setup
@@ -325,7 +324,7 @@ export default class FightScene extends Phaser.Scene {
     // Combat Sequence Methods
     startFightSequence() {
         if (this.isFightSequencePlaying) {
-            console.warn('Fight sequence already playing, ignoring duplicate start');
+            // Handle error silently
             return;
         }
         this.isFightSequencePlaying = true;
@@ -365,7 +364,7 @@ export default class FightScene extends Phaser.Scene {
                             this.playCombatSequence(0);
                         });
                     } else {
-                        console.error('No combat data available');
+                        // Handle error silently
                     }
                 }
             });

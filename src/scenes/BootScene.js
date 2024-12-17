@@ -22,8 +22,15 @@ export default class BootScene extends Phaser.Scene {
     
         // Only set player IDs if no txId (practice mode) and if not provided in URL
         if (!this.txId) {
-            this.player1Id = params.get('player1Id');
-            this.player2Id = params.get('player2Id');
+            const p1Id = params.get('player1Id');
+            const p2Id = params.get('player2Id');
+            
+            // Only set player IDs if both are valid numbers
+            if (p1Id && p2Id && !isNaN(p1Id) && !isNaN(p2Id)) {
+                this.player1Id = p1Id;
+                this.player2Id = p2Id;
+            }
+            // Otherwise, leave them undefined so selectRandomPlayers() will be called
         }
     }
 
@@ -48,7 +55,7 @@ export default class BootScene extends Phaser.Scene {
                 this.blockNumber = duelData.blockNumber; // Use block number from transaction
             } 
             // If no player IDs provided and no txId, randomly select players
-            else if (!this.player1Id || !this.player2Id) {
+            else if (typeof this.player1Id === 'undefined' || typeof this.player2Id === 'undefined') {
                 await this.selectRandomPlayers();
             }
 
